@@ -36,7 +36,7 @@ export default async function PlayersPage() {
           from any event.
         </p>
       ) : (
-        <ul className="divide-y divide-stone-200 overflow-hidden rounded-xl border border-stone-200 bg-white dark:divide-stone-800 dark:border-stone-800 dark:bg-stone-900">
+        <ul className="divide-y divide-stone-200 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm dark:divide-stone-800 dark:border-stone-800 dark:bg-stone-900 dark:shadow-none">
           {active.map((p) => (
             <PlayerRow key={p.id} player={p} isMe={p.id === meId} />
           ))}

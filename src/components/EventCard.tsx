@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { MapPin, Users } from "lucide-react";
+import { Check, MapPin, Users } from "lucide-react";
 import {
   durationLabel,
   eventPhase,
@@ -32,11 +32,11 @@ export function EventCard({
   return (
     <Link
       href={`/events/${event.id}`}
-      className={`block rounded-2xl border bg-white p-4 transition hover:border-emerald-400 active:scale-[0.995] dark:bg-stone-900 ${
+      className={`block rounded-2xl border bg-white p-4 shadow-sm transition hover:border-emerald-400 hover:shadow-md active:scale-[0.995] dark:bg-stone-900 dark:shadow-none ${
         phase === "live"
           ? "border-emerald-400 ring-2 ring-emerald-500/20 dark:border-emerald-600"
           : "border-stone-200 dark:border-stone-800"
-      } ${past ? "opacity-90" : ""}`}
+      }`}
     >
       <div className="flex items-start gap-3">
         <span className="text-2xl leading-none" aria-hidden>
@@ -84,54 +84,72 @@ export function EventCard({
         The two numbers people actually open the app for: how many are in, and
         what it costs each of them. Given their own row so they read at a glance.
       */}
-      <div className="mt-3 flex items-stretch gap-2 border-t border-stone-100 pt-3 dark:border-stone-800">
-        <div className="flex min-w-0 flex-1 items-center gap-2">
-          <Users size={16} className="shrink-0 text-stone-400" />
-          <div className="min-w-0">
-            <p className="text-lg leading-none font-bold tabular-nums">
-              {headcount}
-            </p>
-            <p className="mt-0.5 truncate text-[11px] text-stone-500 dark:text-stone-400">
-              {past ? "came" : headcount === 1 ? "person in" : "people in"}
-            </p>
-          </div>
-        </div>
+      <div className="mt-3 flex flex-wrap items-center gap-1.5">
+        <Stat
+          icon={<Users size={13} />}
+          value={headcount}
+          label={past ? "came" : "going"}
+          tone={past ? "plain" : "green"}
+        />
 
         {hasCost && (
-          <div className="min-w-0 flex-1 border-l border-stone-100 pl-3 dark:border-stone-800">
-            {/*
-              Before the event the split is guesswork, so show the venue cost
-              itself. Only once people are ticked off does a per-head figure
-              mean anything.
-            */}
-            <p className="truncate text-lg leading-none font-bold tabular-nums text-emerald-700 dark:text-emerald-400">
-              {past && perHead !== null && perHead > 0
+          // Before the event the split is guesswork, so show the venue cost
+          // itself. Only once people are ticked off does per-head mean anything.
+          <Stat
+            value={
+              past && perHead !== null && perHead > 0
                 ? formatPeso(perHead)
-                : formatPeso(event.total_cost!)}
-            </p>
-            <p className="mt-0.5 truncate text-[11px] text-stone-500 dark:text-stone-400">
-              {past && perHead !== null && perHead > 0 ? "each" : "venue"}
-            </p>
-          </div>
+                : formatPeso(event.total_cost!)
+            }
+            label={past && perHead !== null && perHead > 0 ? "each" : "venue"}
+            tone="plain"
+          />
         )}
 
-        {hasCost && past && (
-          <div className="min-w-0 flex-1 border-l border-stone-100 pl-3 dark:border-stone-800">
-            <p
-              className={`truncate text-lg leading-none font-bold tabular-nums ${
-                unpaid > 0
-                  ? "text-amber-700 dark:text-amber-400"
-                  : "text-stone-400 dark:text-stone-500"
-              }`}
-            >
-              {unpaid > 0 ? formatPeso(outstanding) : "✓"}
-            </p>
-            <p className="mt-0.5 truncate text-[11px] text-stone-500 dark:text-stone-400">
-              {unpaid > 0 ? `${unpaid} unpaid` : "all paid"}
-            </p>
-          </div>
+        {hasCost && past && unpaid > 0 && (
+          <Stat value={formatPeso(outstanding)} label="unpaid" tone="amber" />
+        )}
+
+        {hasCost && past && unpaid === 0 && headcount > 0 && (
+          <Stat icon={<Check size={13} />} label="all paid" tone="green" />
         )}
       </div>
     </Link>
+  );
+}
+
+/**
+ * One soft chip per number. Chips instead of a divided grid: no rules to draw,
+ * they wrap on a narrow phone, and an empty one simply is not rendered — so a
+ * free event or an unpaid-free event does not leave a hole in the layout.
+ */
+function Stat({
+  icon,
+  value,
+  label,
+  tone,
+}: {
+  icon?: React.ReactNode;
+  value?: React.ReactNode;
+  label: string;
+  tone: "green" | "amber" | "plain";
+}) {
+  const tones = {
+    green:
+      "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/60 dark:text-emerald-300",
+    amber: "bg-amber-50 text-amber-800 dark:bg-amber-950/60 dark:text-amber-300",
+    plain: "bg-stone-100 text-stone-700 dark:bg-stone-800 dark:text-stone-200",
+  };
+
+  return (
+    <span
+      className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-sm ${tones[tone]}`}
+    >
+      {icon && <span className="opacity-60">{icon}</span>}
+      {value !== undefined && (
+        <span className="font-semibold tabular-nums">{value}</span>
+      )}
+      <span className="text-xs opacity-70">{label}</span>
+    </span>
   );
 }

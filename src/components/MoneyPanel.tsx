@@ -75,7 +75,7 @@ export function MoneyPanel({
           Nobody on this event yet. Add whoever turned up below.
         </p>
       ) : (
-        <ul className="divide-y divide-stone-200 overflow-hidden rounded-xl border border-stone-200 bg-white dark:divide-stone-800 dark:border-stone-800 dark:bg-stone-900">
+        <ul className="divide-y divide-stone-200 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm dark:divide-stone-800 dark:border-stone-800 dark:bg-stone-900 dark:shadow-none">
           {participants.map((p) => (
             <AttendanceRow
               key={p.id}
@@ -135,7 +135,7 @@ function MoneyHeader({ split }: { split: MoneySplit }) {
     split.assigned > 0 ? Math.round((split.collected / split.assigned) * 100) : 0;
 
   return (
-    <div className="mb-3 rounded-xl border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-900">
+    <div className="mb-3 rounded-xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900 dark:shadow-none">
       <div className="flex items-baseline justify-between">
         <span className="text-2xl font-bold">{formatPeso(split.total)}</span>
         <span className="text-sm text-stone-500 dark:text-stone-400">

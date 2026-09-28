@@ -73,7 +73,7 @@ export default async function CalendarPage({
         </Link>
       </div>
 
-      <div className="rounded-2xl border border-stone-200 bg-white p-2 dark:border-stone-800 dark:bg-stone-900">
+      <div className="rounded-2xl border border-stone-200 bg-white p-2 shadow-sm dark:border-stone-800 dark:bg-stone-900 dark:shadow-none">
         <div className="grid grid-cols-7 pb-1">
           {WEEKDAYS.map((d, i) => (
             <div

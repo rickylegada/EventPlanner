@@ -88,7 +88,7 @@ export default async function EventPage({
         </Link>
       </div>
 
-      <header className="rounded-2xl border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-900">
+      <header className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900 dark:shadow-none">
         <div className="flex items-start gap-2">
           <span className="text-xl leading-tight" aria-hidden>
             {meta.emoji}

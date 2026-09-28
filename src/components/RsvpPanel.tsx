@@ -65,7 +65,7 @@ export function RsvpPanel({
           Nobody added yet. Add players below.
         </p>
       ) : (
-        <ul className="divide-y divide-stone-200 overflow-hidden rounded-xl border border-stone-200 bg-white dark:divide-stone-800 dark:border-stone-800 dark:bg-stone-900">
+        <ul className="divide-y divide-stone-200 overflow-hidden rounded-xl border border-stone-200 bg-white shadow-sm dark:divide-stone-800 dark:border-stone-800 dark:bg-stone-900 dark:shadow-none">
           {participants.map((p) => (
             <li key={p.id} className="flex items-center gap-2 px-2.5 py-2">
               <Avatar name={p.player.name} color={p.player.color} />
