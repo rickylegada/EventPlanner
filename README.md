@@ -74,10 +74,10 @@ Open http://localhost:3000, enter the passcode, pick your name, and add an event
 
 ## Going live so your friends can use it
 
-1. **Put the code on GitHub.** Create an empty repository, then:
+1. **Put the code on GitHub.** The remote is already set to
+   [rickylegada/EventPlanner](https://github.com/rickylegada/EventPlanner):
 
    ```bash
-   git remote add origin https://github.com/<you>/pickle.git
    git push -u origin main
    ```
 
