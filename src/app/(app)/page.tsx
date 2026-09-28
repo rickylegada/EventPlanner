@@ -1,13 +1,19 @@
 import Link from "next/link";
+import { UserRound } from "lucide-react";
 import { eventPhase, manilaDateKey } from "@/lib/dates";
 import { getEventSummaries, getEvents } from "@/server/data";
+import { getCurrentPlayerId } from "@/lib/auth";
 import { EventCard } from "@/components/EventCard";
 import { EventsTabs } from "@/components/EventsTabs";
 
 export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
-  const [events, summaries] = await Promise.all([getEvents(), getEventSummaries()]);
+  const [events, summaries, meId] = await Promise.all([
+    getEvents(),
+    getEventSummaries(),
+    getCurrentPlayerId(),
+  ]);
 
   const today = manilaDateKey(new Date());
   const notPast = events.filter((e) => eventPhase(e.starts_at, e.ends_at) !== "past");
@@ -84,6 +90,25 @@ export default async function EventsPage() {
 
   return (
     <div className="space-y-4">
+      {/*
+        "Who you are" is a per-browser cookie, so a new phone starts out
+        anonymous. Until it is set your row is not highlighted and you cannot
+        manage your own events, which is confusing if nothing says so.
+      */}
+      {!meId && (
+        <Link
+          href="/me"
+          className="flex items-center gap-2 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 transition hover:bg-amber-100 dark:border-amber-800 dark:bg-amber-950/40 dark:text-amber-200"
+        >
+          <UserRound size={16} className="shrink-0" />
+          <span className="flex-1">
+            <strong className="font-semibold">Who are you?</strong> Pick your name so
+            your RSVPs and your own events are yours.
+          </span>
+          <span>›</span>
+        </Link>
+      )}
+
       {/* Money owed matters whichever tab you are on, so it sits above both. */}
       {owing.length > 0 && (
         <section className="rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm dark:border-amber-800/60 dark:bg-amber-950/30">

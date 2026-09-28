@@ -64,6 +64,12 @@ export function MoneyPanel({
         </button>
       )}
 
+      {participants.length > 0 && (
+        <p className="mb-1.5 px-1 text-xs text-stone-500 dark:text-stone-400">
+          Tap a name to mark them as here.
+        </p>
+      )}
+
       {participants.length === 0 ? (
         <p className="rounded-xl border border-dashed border-stone-300 px-4 py-6 text-center text-sm text-stone-500 dark:border-stone-700 dark:text-stone-400">
           Nobody on this event yet. Add whoever turned up below.
@@ -206,51 +212,55 @@ function AttendanceRow({
 }) {
   return (
     <li className={p.attended ? "" : "bg-stone-50/60 dark:bg-stone-950/30"}>
-      <div className="flex items-center gap-2.5 px-2.5 py-2">
+      <div className="flex items-center gap-2 px-2 py-1.5">
         {/*
-          The box stays 28px visually but the button is padded out to a 44px
-          tap target — this is the control everyone jabs at on a phone.
+          The whole name is the switch, not a small box beside it. A checkbox
+          reads as "fill in a form"; here you are just tapping the people who
+          turned up, so the entire row responds and the tap target is huge.
         */}
         <button
           type="button"
-          role="checkbox"
-          aria-checked={p.attended}
-          aria-label={`${p.player.name} came`}
+          aria-pressed={p.attended}
+          aria-label={
+            p.attended
+              ? `${p.player.name} came — tap to undo`
+              : `Mark ${p.player.name} as here`
+          }
           disabled={busy}
           onClick={() => run(() => setAttendedAction(eventId, p.id, !p.attended))}
-          className="-m-2 shrink-0 p-2"
+          className="flex min-w-0 flex-1 items-center gap-2.5 rounded-lg px-1 py-1.5 text-left transition active:bg-stone-100 dark:active:bg-stone-800"
         >
           <span
-            className={`flex size-7 items-center justify-center rounded-md border-2 transition ${
+            className={`flex size-7 shrink-0 items-center justify-center rounded-full border-2 transition ${
               p.attended
                 ? "border-emerald-600 bg-emerald-600 text-white"
-                : "border-stone-300 dark:border-stone-600"
+                : "border-dashed border-stone-300 dark:border-stone-600"
             }`}
           >
-            {p.attended && <Check size={14} strokeWidth={3.5} />}
+            {p.attended && <Check size={15} strokeWidth={3.5} />}
+          </span>
+
+          <Avatar name={p.player.name} color={p.player.color} />
+
+          <span
+            className={`min-w-0 flex-1 truncate text-sm ${
+              p.attended ? "font-medium" : "text-stone-400 dark:text-stone-500"
+            }`}
+          >
+            {p.player.name}
+            {isMe && (
+              <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
+                you
+              </span>
+            )}
+            {/* Carries the RSVP over so you still know who had said they'd come. */}
+            {!p.attended && p.rsvp !== "no_reply" && (
+              <span className="ml-1.5 rounded bg-stone-200 px-1.5 py-0.5 text-[10px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-400">
+                {RSVP_HINT[p.rsvp]}
+              </span>
+            )}
           </span>
         </button>
-
-        <Avatar name={p.player.name} color={p.player.color} />
-
-        <span
-          className={`min-w-0 flex-1 truncate text-sm ${
-            p.attended ? "font-medium" : "text-stone-400 dark:text-stone-500"
-          }`}
-        >
-          {p.player.name}
-          {isMe && (
-            <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
-              you
-            </span>
-          )}
-          {/* Carries the RSVP over so you still know who had said they'd come. */}
-          {!p.attended && p.rsvp !== "no_reply" && (
-            <span className="ml-1.5 rounded bg-stone-200 px-1.5 py-0.5 text-[10px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-400">
-              {RSVP_HINT[p.rsvp]}
-            </span>
-          )}
-        </span>
 
         {p.attended && hasMoney && (
           <>

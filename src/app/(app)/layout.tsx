@@ -35,7 +35,13 @@ export default async function AppLayout({
         </Link>
         <Link
           href="/me"
-          className="rounded-full border border-stone-300 px-3 py-2 text-xs font-medium text-stone-600 transition hover:border-emerald-500 hover:text-emerald-700 dark:border-stone-700 dark:text-stone-300 dark:hover:text-emerald-400"
+          className={`shrink-0 rounded-full border px-3 py-2 text-xs font-medium transition ${
+            me
+              ? "border-stone-300 text-stone-600 hover:border-emerald-500 hover:text-emerald-700 dark:border-stone-700 dark:text-stone-300 dark:hover:text-emerald-400"
+              : // Unset is a real problem — you cannot manage your own events
+                // until this is picked — so it should not look like a quiet pill.
+                "border-amber-400 bg-amber-50 font-semibold text-amber-800 dark:bg-amber-950/50 dark:text-amber-300"
+          }`}
         >
           {me ? me.name : "Who are you?"}
         </Link>
