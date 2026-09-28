@@ -1,0 +1,66 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+}
+
+:root {
+  color-scheme: light dark;
+}
+
+html {
+  /* Stop iOS from zooming when you focus an input. */
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  @apply bg-stone-100 text-stone-900 antialiased;
+  @apply dark:bg-stone-950 dark:text-stone-100;
+}
+
+/* Keep the bottom nav clear of the iPhone home indicator. */
+.safe-bottom {
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+/*
+ * Phone-first behaviour. This app is mostly used one-handed at the court, so:
+ * kill the 300ms double-tap delay, stop the grey flash on tap, and keep a
+ * rubber-band scroll from bouncing the whole page behind the fixed nav.
+ */
+button,
+a,
+label,
+[role="checkbox"],
+[role="tab"] {
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Names and notes should wrap or clip rather than widen the page. */
+input,
+textarea {
+  max-width: 100%;
+}
+
+/* Inputs are 16px minimum so mobile Safari doesn't zoom on focus. */
+input,
+select,
+textarea,
+button {
+  font-size: max(16px, 1rem);
+}
+
+@media (min-width: 640px) {
+  input,
+  select,
+  textarea,
+  button {
+    font-size: inherit;
+  }
+}
