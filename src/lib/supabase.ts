@@ -8,6 +8,21 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  */
 let client: SupabaseClient | null = null;
 
+/**
+ * The Supabase dashboard shows several URLs and it is easy to copy the full
+ * REST endpoint instead of the plain project URL. supabase-js adds `/rest/v1`
+ * itself, so a pasted `.../rest/v1/` would produce `/rest/v1/rest/v1/players`
+ * and the API answers "Invalid path specified in request URL". Trim it here
+ * rather than making everyone get the value exactly right in two places.
+ */
+function normalizeProjectUrl(raw: string): string {
+  return raw
+    .trim()
+    .replace(/\/+$/, "")
+    .replace(/\/rest\/v1$/, "")
+    .replace(/\/+$/, "");
+}
+
 export function db(): SupabaseClient {
   if (client) return client;
 
@@ -22,7 +37,7 @@ export function db(): SupabaseClient {
     );
   }
 
-  client = createClient(url, key, {
+  client = createClient(normalizeProjectUrl(url), key, {
     auth: { persistSession: false, autoRefreshToken: false },
   });
   return client;
