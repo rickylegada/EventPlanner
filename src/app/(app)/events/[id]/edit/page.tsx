@@ -8,6 +8,7 @@ import { canManageEvent, getViewer, manageDeniedReason } from "@/server/permissi
 import { EventForm } from "@/components/EventForm";
 import { DeleteEventButton } from "@/components/DeleteEventButton";
 import { PaymentSection } from "@/components/PaymentSection";
+import { RepeatWeeklyButton } from "@/components/EventActions";
 
 export const dynamic = "force-dynamic";
 
@@ -69,6 +70,12 @@ export default async function EditEventPage({
           signedUrls={{ one: qrOne, two: qrTwo }}
         />
       )}
+
+      {/* Duplicating an event is an organiser job, so it belongs here rather
+          than in a button bar under everyone's attendance list. */}
+      <div className="border-t border-stone-200 pt-4 dark:border-stone-800">
+        <RepeatWeeklyButton eventId={event.id} />
+      </div>
 
       <div className="border-t border-stone-200 pt-4 dark:border-stone-800">
         {canManage ? (

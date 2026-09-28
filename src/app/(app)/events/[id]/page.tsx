@@ -23,11 +23,8 @@ import {
 import { RsvpPanel } from "@/components/RsvpPanel";
 import { MoneyPanel } from "@/components/MoneyPanel";
 import { PayWith, type PayOption } from "@/components/PayWith";
-import {
-  AutoRefresh,
-  CopySummaryButton,
-  RepeatWeeklyButton,
-} from "@/components/EventActions";
+import { AutoRefresh } from "@/components/EventActions";
+import { ShareButton } from "@/components/ShareButton";
 
 export const dynamic = "force-dynamic";
 
@@ -80,12 +77,16 @@ export default async function EventPage({
         >
           <ChevronLeft size={16} /> Events
         </Link>
-        <Link
-          href={`/events/${event.id}/edit`}
-          className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-2.5 text-xs font-medium text-stone-600 transition hover:bg-stone-200 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
-        >
-          <Pencil size={13} /> Edit
-        </Link>
+        {/* Actions live up here beside Edit, not in a bar at the bottom. */}
+        <div className="flex items-center gap-1">
+          <ShareButton text={summary} title={event.title} />
+          <Link
+            href={`/events/${event.id}/edit`}
+            className="flex items-center gap-1.5 rounded-lg border border-stone-300 px-2.5 py-2.5 text-xs font-medium text-stone-600 transition hover:bg-stone-200 dark:border-stone-700 dark:text-stone-300 dark:hover:bg-stone-800"
+          >
+            <Pencil size={13} /> Edit
+          </Link>
+        </div>
       </div>
 
       <header className="rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900 dark:shadow-none">
@@ -214,10 +215,6 @@ export default async function EventPage({
         )}
       </section>
 
-      <div className="flex gap-2">
-        <CopySummaryButton text={summary} />
-        <RepeatWeeklyButton eventId={event.id} />
-      </div>
     </div>
   );
 }

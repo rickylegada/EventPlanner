@@ -1,6 +1,8 @@
 import "server-only";
+import { cache } from "react";
 import { db, unwrap } from "@/lib/supabase";
 import { splitCost, type MoneyRow } from "@/lib/money";
+import { buildSummary } from "@/lib/summary";
 import type { EventRow, Participant, Player } from "@/lib/types";
 
 /** Postgres `numeric` can arrive as a string; make it a number or null. */
@@ -15,17 +17,17 @@ const normalizeEvent = (row: Record<string, unknown>): EventRow => ({
 const byName = (a: { player: Player }, b: { player: Player }) =>
   a.player.name.localeCompare(b.player.name, "en");
 
-export async function getPlayers(): Promise<Player[]> {
+export const getPlayers = cache(async (): Promise<Player[]> => {
   const rows = unwrap(await db().from("players").select("*").order("name"));
   return rows as Player[];
-}
+});
 
-export async function getEvents(): Promise<EventRow[]> {
+export const getEvents = cache(async (): Promise<EventRow[]> => {
   const rows = unwrap(
     await db().from("events").select("*").order("starts_at", { ascending: true }),
   );
   return (rows as Record<string, unknown>[]).map(normalizeEvent);
-}
+});
 
 export async function getEvent(id: string): Promise<EventRow | null> {
   const { data, error } = await db().from("events").select("*").eq("id", id).maybeSingle();
@@ -71,6 +73,8 @@ export type EventSummary = {
   perHead: number | null;
   /** Headcount the cost would be split between right now. */
   splitAmong: number;
+  /** The pasteable group-chat text for this event, built server side. */
+  shareText: string;
 };
 
 const EMPTY_SUMMARY: EventSummary = {
@@ -82,23 +86,17 @@ const EMPTY_SUMMARY: EventSummary = {
   collected: 0,
   perHead: null,
   splitAmong: 0,
+  shareText: "",
 };
 
-export async function getEventSummaries(): Promise<Record<string, EventSummary>> {
+export const getEventSummaries = cache(async (): Promise<Record<string, EventSummary>> => {
   const [events, rows] = await Promise.all([
     getEvents(),
     db()
       .from("event_players")
-      .select("event_id, player_id, rsvp, attended, paid, share_override")
+      .select("*, player:players(*)")
       .then(unwrap) as Promise<
-      {
-        event_id: string;
-        player_id: string;
-        rsvp: string;
-        attended: boolean;
-        paid: boolean;
-        share_override: number | string | null;
-      }[]
+      Participant[]
     >,
   ]);
 
@@ -121,6 +119,10 @@ export async function getEventSummaries(): Promise<Record<string, EventSummary>>
       if (r.attended) summary.attended += 1;
     }
 
+    const participants = list
+      .map((r) => ({ ...r, share_override: num(r.share_override) }))
+      .sort(byName);
+
     // Before the event there is no attendance yet, so preview the split across
     // the people who said they are coming. After it, use who actually came.
     const useRsvp = summary.attended === 0 && summary.going > 0;
@@ -133,6 +135,14 @@ export async function getEventSummaries(): Promise<Record<string, EventSummary>>
 
     const split = splitCost(event.total_cost, moneyRows);
     const shares = split.shares.map((s) => s.share);
+
+    // The same text the event page would produce, so sharing from a card and
+    // sharing from the event itself never disagree.
+    summary.shareText = buildSummary(
+      event,
+      participants,
+      splitCost(event.total_cost, toMoneyRows(participants)),
+    );
 
     summary.splitAmong = split.attendeeCount;
     summary.perHead =
@@ -147,7 +157,7 @@ export async function getEventSummaries(): Promise<Record<string, EventSummary>>
   }
 
   return out;
-}
+});
 
 /**
  * QR images live in a private bucket, so the browser gets a link that expires

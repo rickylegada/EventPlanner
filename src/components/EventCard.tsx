@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { Check, MapPin, Users } from "lucide-react";
+import { ShareButton } from "@/components/ShareButton";
 import {
   durationLabel,
   eventPhase,
@@ -30,14 +31,21 @@ export function EventCard({
   const hasCost = event.total_cost != null && event.total_cost > 0;
 
   return (
-    <Link
-      href={`/events/${event.id}`}
-      className={`block rounded-2xl border bg-white p-4 shadow-sm transition hover:border-emerald-400 hover:shadow-md active:scale-[0.995] dark:bg-stone-900 dark:shadow-none ${
+    // The link is stretched across the whole card rather than wrapping it, so
+    // the share button can live inside without nesting a button in an anchor.
+    <div
+      className={`relative rounded-2xl border bg-white p-4 shadow-sm transition hover:border-emerald-400 hover:shadow-md dark:bg-stone-900 dark:shadow-none ${
         phase === "live"
           ? "border-emerald-400 ring-2 ring-emerald-500/20 dark:border-emerald-600"
           : "border-stone-200 dark:border-stone-800"
       }`}
     >
+      <Link
+        href={`/events/${event.id}`}
+        aria-label={`Open ${event.title}`}
+        className="absolute inset-0 rounded-2xl"
+      />
+
       <div className="flex items-start gap-3">
         <span className="text-2xl leading-none" aria-hidden>
           {meta.emoji}
@@ -78,6 +86,12 @@ export function EventCard({
             </p>
           )}
         </div>
+
+        <ShareButton
+          text={summary?.shareText ?? event.title}
+          title={event.title}
+          className="-mt-1 -mr-1"
+        />
       </div>
 
       {/*
@@ -114,7 +128,7 @@ export function EventCard({
           <Stat icon={<Check size={13} />} label="all paid" tone="green" />
         )}
       </div>
-    </Link>
+    </div>
   );
 }
 
