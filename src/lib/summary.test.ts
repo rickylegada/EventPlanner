@@ -124,10 +124,10 @@ test("when everyone has settled up it says so", () => {
 });
 
 test("a free event skips the money section entirely", () => {
-  const free = { ...event, total_cost: null, kind: "birthday" as const, title: "Anna's Birthday" };
+  const free = { ...event, total_cost: null, kind: "party" as const, title: "Christmas Party" };
   const people = [participant("Ricky", { attended: true })];
   const text = buildSummary(free, people, splitCost(null, toMoneyRows(people)));
 
-  assert.match(text, /🎂 Anna's Birthday/);
+  assert.match(text, /🎉 Christmas Party/);
   assert.doesNotMatch(text, /💰/);
 });

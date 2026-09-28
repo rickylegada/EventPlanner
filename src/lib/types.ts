@@ -1,4 +1,4 @@
-export type EventKind = "pickleball" | "birthday" | "other";
+export type EventKind = "pickleball" | "party" | "other";
 export type Rsvp = "going" | "maybe" | "out" | "no_reply";
 
 export type Player = {
@@ -47,7 +47,7 @@ export type Participant = EventPlayerRow & { player: Player };
 
 export const EVENT_KINDS: { value: EventKind; label: string; emoji: string }[] = [
   { value: "pickleball", label: "Pickleball", emoji: "🏓" },
-  { value: "birthday", label: "Birthday", emoji: "🎂" },
+  { value: "party", label: "Party", emoji: "🎉" },
   { value: "other", label: "Other", emoji: "📅" },
 ];
 

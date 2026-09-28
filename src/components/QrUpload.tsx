@@ -2,7 +2,6 @@
 
 import { useActionState, useRef, useTransition } from "react";
 import { useFormStatus } from "react-dom";
-import Image from "next/image";
 import { ImageUp, Trash2 } from "lucide-react";
 import { removeQrAction, uploadQrAction, type QrState } from "@/server/actions";
 
@@ -43,12 +42,11 @@ export function QrUpload({
 
       {signedUrl ? (
         <div className="space-y-2">
-          <Image
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
             src={signedUrl}
             alt={`${label} payment QR code`}
-            width={320}
-            height={320}
-            unoptimized
+            loading="eager"
             className="mx-auto h-40 w-40 rounded-lg border border-stone-200 bg-white object-contain p-1 dark:border-stone-700"
           />
           <button

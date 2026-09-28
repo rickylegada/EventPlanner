@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Image from "next/image";
 import { Check, Copy, QrCode } from "lucide-react";
 
 export type PayOption = { label: string; url: string };
@@ -87,12 +86,11 @@ export function PayWith({
             <div className={options.length > 1 ? "grid grid-cols-2 gap-3" : ""}>
               {options.map((o) => (
                 <figure key={o.label + o.url} className="text-center">
-                  <Image
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
                     src={o.url}
                     alt={`${o.label} QR code`}
-                    width={400}
-                    height={400}
-                    unoptimized
+                    loading="eager"
                     className="mx-auto w-full max-w-[200px] rounded-lg border border-stone-200 bg-white object-contain p-1.5 dark:border-stone-700"
                   />
                   <figcaption className="mt-1.5 text-xs font-medium text-stone-600 dark:text-stone-300">

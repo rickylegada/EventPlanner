@@ -247,12 +247,16 @@ export function EventForm({
         </p>
       </div>
 
-      {/* Only worth asking about once there is money involved. */}
-      {cost.trim() !== "" && (
+      {/*
+        Payment details only appear once the event exists. Organisers often add
+        them well after creating it — sometimes only after the session — and
+        asking up front just makes the create form longer than it needs to be.
+      */}
+      {values.id && cost.trim() !== "" && (
         <fieldset className="space-y-3 rounded-xl border border-stone-300 bg-white p-3 dark:border-stone-700 dark:bg-stone-900">
           <legend className={`${label} px-1`}>How people pay you</legend>
           <p className="text-xs text-stone-500 dark:text-stone-400">
-            Shown to everyone who owes money. You can add the QR images after saving.
+            Shown to everyone who owes money. Add or change this any time.
           </p>
 
           <div className="grid grid-cols-2 gap-3">

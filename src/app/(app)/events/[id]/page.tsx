@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { ChevronLeft, MapPin, Pencil } from "lucide-react";
+import { ChevronLeft, MapPin, Pencil, QrCode } from "lucide-react";
 import { getCurrentPlayerId } from "@/lib/auth";
 import {
   durationLabel,
@@ -161,6 +161,25 @@ export default async function EventPage({
           </p>
         )}
       </header>
+
+      {/*
+        Payment details are added after the event is created — before or after
+        the session — so nudge for them whenever money is involved and they
+        are still missing.
+      */}
+      {event.total_cost != null &&
+        event.total_cost > 0 &&
+        !event.gcash_number &&
+        payOptions.length === 0 && (
+          <Link
+            href={`/events/${event.id}/edit`}
+            className="flex items-center gap-2 rounded-xl border border-dashed border-stone-300 px-3 py-2.5 text-sm text-stone-600 transition hover:border-emerald-400 hover:text-emerald-700 dark:border-stone-700 dark:text-stone-300 dark:hover:text-emerald-400"
+          >
+            <QrCode size={15} className="shrink-0 text-stone-400" />
+            <span className="flex-1">Add a GCash number or QR so people can pay you</span>
+            <span className="text-stone-400">›</span>
+          </Link>
+        )}
 
       <section>
         <h2 className="mb-2 px-1 text-xs font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">
