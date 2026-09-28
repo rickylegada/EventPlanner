@@ -1,4 +1,6 @@
 import Link from "next/link";
+import Image from "next/image";
+import logo from "@/assets/PickleballSweatshow.png";
 import { redirect } from "next/navigation";
 import { getCurrentPlayerId, requireSession } from "@/lib/auth";
 import { missingEnv } from "@/lib/config";
@@ -17,8 +19,19 @@ export default async function AppLayout({
   return (
     <div className="mx-auto min-h-dvh max-w-lg">
       <header className="sticky top-0 z-10 flex items-center justify-between border-b border-stone-200 bg-stone-100/90 px-4 py-3 backdrop-blur dark:border-stone-800 dark:bg-stone-950/90">
-        <Link href="/" className="-my-1 flex items-center gap-2 py-1 font-bold tracking-tight">
-          <span aria-hidden>🏓</span> Pickle
+        <Link
+          href="/"
+          className="-my-1 flex min-w-0 items-center gap-2 py-1 font-bold tracking-tight"
+        >
+          <Image
+            src={logo}
+            alt=""
+            width={28}
+            height={28}
+            priority
+            className="size-7 shrink-0 object-contain"
+          />
+          <span className="truncate text-sm">Pickleball Sweatshow</span>
         </Link>
         <Link
           href="/me"

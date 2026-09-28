@@ -12,6 +12,7 @@ import {
 import { formatPeso, splitCost } from "@/lib/money";
 import { buildSummary } from "@/lib/summary";
 import { kindMeta } from "@/lib/types";
+import { qrLabel } from "@/lib/payments";
 import {
   getEvent,
   getParticipants,
@@ -64,8 +65,8 @@ export default async function EventPage({
     signQr(event.qr_two_path),
   ]);
   const payOptions: PayOption[] = [
-    qrOne ? { label: event.qr_one_label || "GCash", url: qrOne } : null,
-    qrTwo ? { label: event.qr_two_label || "Bank", url: qrTwo } : null,
+    qrOne ? { label: qrLabel("one"), url: qrOne } : null,
+    qrTwo ? { label: qrLabel("two"), url: qrTwo } : null,
   ].filter(Boolean) as PayOption[];
 
   return (

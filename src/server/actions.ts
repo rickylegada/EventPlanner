@@ -205,10 +205,6 @@ function readEventForm(form: FormData) {
       maps_url: nullable(form, "maps_url"),
       notes: nullable(form, "notes"),
       total_cost: parseAmount(nullable(form, "total_cost")),
-      gcash_name: nullable(form, "gcash_name"),
-      gcash_number: nullable(form, "gcash_number"),
-      qr_one_label: nullable(form, "qr_one_label"),
-      qr_two_label: nullable(form, "qr_two_label"),
     },
   };
 }
@@ -307,6 +303,32 @@ async function qrPathsFor(eventId: string): Promise<string[]> {
     .eq("id", eventId)
     .maybeSingle();
   return [data?.qr_one_path, data?.qr_two_path].filter(Boolean) as string[];
+}
+
+export type PaymentState = { error?: string; saved?: boolean };
+
+/**
+ * Payment details live on their own, apart from the event form, because
+ * organisers fill them in separately — often only once people start asking
+ * where to send the money.
+ */
+export async function savePaymentDetailsAction(
+  eventId: string,
+  _prev: PaymentState,
+  form: FormData,
+): Promise<PaymentState> {
+  await guard();
+  const { error } = await db()
+    .from("events")
+    .update({
+      gcash_name: nullable(form, "gcash_name"),
+      gcash_number: nullable(form, "gcash_number"),
+    })
+    .eq("id", eventId);
+  if (error) return { error: error.message };
+
+  refreshEvent(eventId);
+  return { saved: true };
 }
 
 export type QrState = { error?: string; ok?: boolean };

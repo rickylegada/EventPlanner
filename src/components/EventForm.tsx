@@ -19,10 +19,6 @@ export type EventFormValues = {
   mapsUrl: string;
   totalCost: string;
   notes: string;
-  gcashName: string;
-  gcashNumber: string;
-  qrOneLabel: string;
-  qrTwoLabel: string;
 };
 
 const field =
@@ -79,7 +75,6 @@ export function EventForm({
   const [state, formAction] = useActionState<EventFormState, FormData>(action, {});
   const [startTime, setStartTime] = useState(values.startTime);
   const [endTime, setEndTime] = useState(values.endTime);
-  const [cost, setCost] = useState(values.totalCost);
 
   const span = useMemo(
     () => minutesBetweenClockTimes(startTime, endTime),
@@ -236,8 +231,7 @@ export function EventForm({
             id="total_cost"
             name="total_cost"
             inputMode="decimal"
-            value={cost}
-            onChange={(e) => setCost(e.target.value)}
+            defaultValue={values.totalCost}
             placeholder="2000"
             className={`${field} pl-7`}
           />
@@ -246,75 +240,6 @@ export function EventForm({
           Split between whoever actually shows up. Leave blank if nobody is paying.
         </p>
       </div>
-
-      {/*
-        Payment details only appear once the event exists. Organisers often add
-        them well after creating it — sometimes only after the session — and
-        asking up front just makes the create form longer than it needs to be.
-      */}
-      {values.id && cost.trim() !== "" && (
-        <fieldset className="space-y-3 rounded-xl border border-stone-300 bg-white p-3 dark:border-stone-700 dark:bg-stone-900">
-          <legend className={`${label} px-1`}>How people pay you</legend>
-          <p className="text-xs text-stone-500 dark:text-stone-400">
-            Shown to everyone who owes money. Add or change this any time.
-          </p>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={label} htmlFor="gcash_name">
-                Account name
-              </label>
-              <input
-                id="gcash_name"
-                name="gcash_name"
-                defaultValue={values.gcashName}
-                placeholder="Ricky L."
-                className={`mt-1.5 ${field}`}
-              />
-            </div>
-            <div>
-              <label className={label} htmlFor="gcash_number">
-                GCash number
-              </label>
-              <input
-                id="gcash_number"
-                name="gcash_number"
-                inputMode="tel"
-                defaultValue={values.gcashNumber}
-                placeholder="0917 123 4567"
-                className={`mt-1.5 ${field}`}
-              />
-            </div>
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={label} htmlFor="qr_one_label">
-                QR 1 label
-              </label>
-              <input
-                id="qr_one_label"
-                name="qr_one_label"
-                defaultValue={values.qrOneLabel}
-                placeholder="GCash"
-                className={`mt-1.5 ${field}`}
-              />
-            </div>
-            <div>
-              <label className={label} htmlFor="qr_two_label">
-                QR 2 label
-              </label>
-              <input
-                id="qr_two_label"
-                name="qr_two_label"
-                defaultValue={values.qrTwoLabel}
-                placeholder="BPI / Maya"
-                className={`mt-1.5 ${field}`}
-              />
-            </div>
-          </div>
-        </fieldset>
-      )}
 
       <div>
         <label className={label} htmlFor="notes">

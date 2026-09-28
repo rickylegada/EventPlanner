@@ -2,10 +2,10 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Pickle",
+  title: "Pickleball Sweatshow",
   description: "Who's playing, who came, and who still owes for the court.",
   // Lets everyone "Add to Home Screen" and get a full-screen, app-like window.
-  appleWebApp: { capable: true, title: "Pickle", statusBarStyle: "default" },
+  appleWebApp: { capable: true, title: "Sweatshow", statusBarStyle: "default" },
   icons: {
     icon: [
       { url: "/favicon-32.png", sizes: "32x32", type: "image/png" },

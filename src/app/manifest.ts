@@ -7,8 +7,8 @@ import type { MetadataRoute } from "next";
  */
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: "Pickle — group events",
-    short_name: "Pickle",
+    name: "Pickleball Sweatshow",
+    short_name: "Sweatshow",
     description: "Who's playing, who came, and who still owes for the court.",
     start_url: "/",
     display: "standalone",

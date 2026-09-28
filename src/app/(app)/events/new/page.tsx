@@ -26,10 +26,6 @@ export default function NewEventPage() {
           mapsUrl: "",
           totalCost: "",
           notes: "",
-          gcashName: "",
-          gcashNumber: "",
-          qrOneLabel: "",
-          qrTwoLabel: "",
         }}
       />
     </div>
