@@ -15,6 +15,13 @@ const event: EventRow = {
   maps_url: "https://maps.app.goo.gl/example",
   notes: null,
   total_cost: 2000,
+  created_by: null,
+  gcash_name: null,
+  gcash_number: null,
+  qr_one_path: null,
+  qr_one_label: null,
+  qr_two_path: null,
+  qr_two_label: null,
   created_at: "2026-09-01T00:00:00.000Z",
 };
 
@@ -38,6 +45,7 @@ function participant(
       name,
       color: "emerald",
       is_active: true,
+      is_admin: false,
       created_at: "2026-09-01T00:00:00.000Z",
     },
   };

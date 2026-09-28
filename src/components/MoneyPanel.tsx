@@ -4,7 +4,15 @@ import { useState, useTransition } from "react";
 import { Check, CheckCheck, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import { formatPeso, type MoneySplit } from "@/lib/money";
-import type { Participant } from "@/lib/types";
+import type { Participant, Rsvp } from "@/lib/types";
+
+/** Shown next to anyone not yet ticked off, so the RSVP is not lost. */
+const RSVP_HINT: Record<Rsvp, string> = {
+  going: "said in",
+  maybe: "maybe",
+  out: "said out",
+  no_reply: "",
+};
 import {
   addParticipantAction,
   markGoingAsAttendedAction,
@@ -234,6 +242,12 @@ function AttendanceRow({
           {isMe && (
             <span className="ml-1.5 rounded bg-emerald-100 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300">
               you
+            </span>
+          )}
+          {/* Carries the RSVP over so you still know who had said they'd come. */}
+          {!p.attended && p.rsvp !== "no_reply" && (
+            <span className="ml-1.5 rounded bg-stone-200 px-1.5 py-0.5 text-[10px] font-medium text-stone-600 dark:bg-stone-800 dark:text-stone-400">
+              {RSVP_HINT[p.rsvp]}
             </span>
           )}
         </span>

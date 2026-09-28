@@ -8,7 +8,7 @@ import {
   shiftMonth,
 } from "@/lib/dates";
 import { kindMeta } from "@/lib/types";
-import { getEventCounts, getEvents } from "@/server/data";
+import { getEventSummaries, getEvents } from "@/server/data";
 import { EventCard } from "@/components/EventCard";
 
 export const dynamic = "force-dynamic";
@@ -35,7 +35,7 @@ export default async function CalendarPage({
   const { m } = await searchParams;
   const { year, month } = parseMonth(m);
 
-  const [events, counts] = await Promise.all([getEvents(), getEventCounts()]);
+  const [events, summaries] = await Promise.all([getEvents(), getEventSummaries()]);
 
   // Group every event by its Manila calendar day.
   const byDay = new Map<string, typeof events>();
@@ -150,7 +150,7 @@ export default async function CalendarPage({
           <ul className="space-y-2.5">
             {inMonth.map((e) => (
               <li key={e.id} id={`e-${e.id}`} className="scroll-mt-20">
-                <EventCard event={e} counts={counts[e.id]} />
+                <EventCard event={e} summary={summaries[e.id]} />
               </li>
             ))}
           </ul>

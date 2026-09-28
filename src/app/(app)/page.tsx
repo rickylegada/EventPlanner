@@ -1,19 +1,19 @@
 import Link from "next/link";
 import { isPast } from "@/lib/dates";
-import { getEventCounts, getEvents } from "@/server/data";
+import { getEventSummaries, getEvents } from "@/server/data";
 import { EventCard } from "@/components/EventCard";
 
 export const dynamic = "force-dynamic";
 
 export default async function EventsPage() {
-  const [events, counts] = await Promise.all([getEvents(), getEventCounts()]);
+  const [events, summaries] = await Promise.all([getEvents(), getEventSummaries()]);
 
   const upcoming = events.filter((e) => !isPast(e.starts_at, e.ends_at));
   const past = events
     .filter((e) => isPast(e.starts_at, e.ends_at))
     .reverse();
 
-  const owing = past.filter((e) => (counts[e.id]?.unpaid ?? 0) > 0);
+  const owing = past.filter((e) => (summaries[e.id]?.unpaid ?? 0) > 0);
 
   return (
     <div className="space-y-6">
@@ -29,7 +29,7 @@ export default async function EventsPage() {
                   href={`/events/${e.id}`}
                   className="inline-block py-1.5 text-amber-800 underline-offset-2 hover:underline dark:text-amber-300"
                 >
-                  {e.title} — {counts[e.id].unpaid} unpaid
+                  {e.title} — {summaries[e.id].unpaid} unpaid
                 </Link>
               </li>
             ))}
@@ -60,7 +60,7 @@ export default async function EventsPage() {
           <ul className="space-y-2.5">
             {upcoming.map((e) => (
               <li key={e.id}>
-                <EventCard event={e} counts={counts[e.id]} />
+                <EventCard event={e} summary={summaries[e.id]} />
               </li>
             ))}
           </ul>
@@ -76,7 +76,7 @@ export default async function EventsPage() {
           <ul className="mt-2 space-y-2.5">
             {past.map((e) => (
               <li key={e.id}>
-                <EventCard event={e} counts={counts[e.id]} past />
+                <EventCard event={e} summary={summaries[e.id]} />
               </li>
             ))}
           </ul>

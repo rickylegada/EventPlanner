@@ -19,12 +19,17 @@ export default function NewEventPage() {
         values={{
           title: "",
           kind: "pickleball",
-          startsAtLocal: `${tomorrow}T18:00`,
-          endsAtLocal: `${tomorrow}T20:00`,
+          date: tomorrow,
+          startTime: "18:00",
+          endTime: "20:00",
           venueName: "",
           mapsUrl: "",
           totalCost: "",
           notes: "",
+          gcashName: "",
+          gcashNumber: "",
+          qrOneLabel: "",
+          qrTwoLabel: "",
         }}
       />
     </div>

@@ -1,5 +1,6 @@
 import "server-only";
 import { db, unwrap } from "@/lib/supabase";
+import { splitCost, type MoneyRow } from "@/lib/money";
 import type { EventRow, Participant, Player } from "@/lib/types";
 
 /** Postgres `numeric` can arrive as a string; make it a number or null. */
@@ -45,22 +46,119 @@ export async function getParticipants(eventId: string): Promise<Participant[]> {
     .sort(byName);
 }
 
-/** Counts of players per event, keyed by event id — for the list and calendar. */
-export async function getEventCounts(): Promise<
-  Record<string, { going: number; attended: number; unpaid: number }>
-> {
-  const rows = unwrap(
-    await db().from("event_players").select("event_id, rsvp, attended, paid"),
-  ) as { event_id: string; rsvp: string; attended: boolean; paid: boolean }[];
+export const toMoneyRows = (list: Participant[]): MoneyRow[] =>
+  list.map((p) => ({
+    playerId: p.player_id,
+    attended: p.attended,
+    shareOverride: p.share_override,
+    paid: p.paid,
+  }));
 
-  const counts: Record<string, { going: number; attended: number; unpaid: number }> = {};
+/**
+ * Everything the event list and calendar cards need, worked out in one pass:
+ * headcounts plus the money position, so a card can say "4 going · ₱500 each"
+ * without each card hitting the database.
+ */
+export type EventSummary = {
+  going: number;
+  maybe: number;
+  attended: number;
+  unpaid: number;
+  /** Total still owed across everyone who has not paid. */
+  outstanding: number;
+  collected: number;
+  /** The per-head amount, or null when shares differ because of overrides. */
+  perHead: number | null;
+  /** Headcount the cost would be split between right now. */
+  splitAmong: number;
+};
+
+const EMPTY_SUMMARY: EventSummary = {
+  going: 0,
+  maybe: 0,
+  attended: 0,
+  unpaid: 0,
+  outstanding: 0,
+  collected: 0,
+  perHead: null,
+  splitAmong: 0,
+};
+
+export async function getEventSummaries(): Promise<Record<string, EventSummary>> {
+  const [events, rows] = await Promise.all([
+    getEvents(),
+    db()
+      .from("event_players")
+      .select("event_id, player_id, rsvp, attended, paid, share_override")
+      .then(unwrap) as Promise<
+      {
+        event_id: string;
+        player_id: string;
+        rsvp: string;
+        attended: boolean;
+        paid: boolean;
+        share_override: number | string | null;
+      }[]
+    >,
+  ]);
+
+  const grouped = new Map<string, typeof rows>();
   for (const r of rows) {
-    const c = (counts[r.event_id] ??= { going: 0, attended: 0, unpaid: 0 });
-    if (r.rsvp === "going") c.going += 1;
-    if (r.attended) {
-      c.attended += 1;
-      if (!r.paid) c.unpaid += 1;
-    }
+    const list = grouped.get(r.event_id);
+    if (list) list.push(r);
+    else grouped.set(r.event_id, [r]);
   }
-  return counts;
+
+  const out: Record<string, EventSummary> = {};
+
+  for (const event of events) {
+    const list = grouped.get(event.id) ?? [];
+    const summary: EventSummary = { ...EMPTY_SUMMARY };
+
+    for (const r of list) {
+      if (r.rsvp === "going") summary.going += 1;
+      if (r.rsvp === "maybe") summary.maybe += 1;
+      if (r.attended) summary.attended += 1;
+    }
+
+    // Before the event there is no attendance yet, so preview the split across
+    // the people who said they are coming. After it, use who actually came.
+    const useRsvp = summary.attended === 0 && summary.going > 0;
+    const moneyRows: MoneyRow[] = list.map((r) => ({
+      playerId: r.player_id,
+      attended: useRsvp ? r.rsvp === "going" : r.attended,
+      shareOverride: num(r.share_override),
+      paid: r.paid,
+    }));
+
+    const split = splitCost(event.total_cost, moneyRows);
+    const shares = split.shares.map((s) => s.share);
+
+    summary.splitAmong = split.attendeeCount;
+    summary.perHead =
+      shares.length > 0 && shares.every((s) => s === shares[0]) ? shares[0] : null;
+    summary.collected = split.collected;
+    summary.outstanding = useRsvp ? 0 : split.outstanding;
+    summary.unpaid = useRsvp
+      ? 0
+      : list.filter((r) => r.attended && !r.paid).length;
+
+    out[event.id] = summary;
+  }
+
+  return out;
+}
+
+/**
+ * QR images live in a private bucket, so the browser gets a link that expires
+ * rather than a permanent public URL. Anything that fails to sign is simply
+ * not shown — a broken payment image should never take the page down.
+ */
+export async function signQr(path: string | null): Promise<string | null> {
+  if (!path) return null;
+  const { data, error } = await db()
+    .storage.from("event-qr")
+    .createSignedUrl(path, 60 * 60);
+  if (error) return null;
+  return data?.signedUrl ?? null;
 }

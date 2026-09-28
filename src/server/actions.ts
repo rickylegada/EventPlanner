@@ -3,8 +3,15 @@
 import { revalidatePath } from "next/cache";
 import { redirect } from "next/navigation";
 import { db } from "@/lib/supabase";
-import { isSignedIn, setCurrentPlayerId, signIn, signOut } from "@/lib/auth";
-import { fromLocalInputValue } from "@/lib/dates";
+import {
+  getCurrentPlayerId,
+  isSignedIn,
+  setCurrentPlayerId,
+  signIn,
+  signOut,
+} from "@/lib/auth";
+import { combineDateTime, endFromSameDay } from "@/lib/dates";
+import { canManageEvent, getViewer } from "@/server/permissions";
 import type { EventKind, Rsvp } from "@/lib/types";
 
 /**
@@ -128,6 +135,21 @@ export async function setPlayerActiveAction(playerId: string, isActive: boolean)
   revalidatePath("/players");
 }
 
+/**
+ * Admins can delete anyone's event. See permissions.ts — with one shared
+ * passcode this is about intent and avoiding mis-taps, not security.
+ */
+export async function setPlayerAdminAction(playerId: string, isAdmin: boolean) {
+  await guard();
+  const { error } = await db()
+    .from("players")
+    .update({ is_admin: isAdmin })
+    .eq("id", playerId);
+  if (error) throw new Error(error.message);
+  revalidatePath("/players");
+  revalidatePath("/", "layout");
+}
+
 export async function deletePlayerAction(playerId: string) {
   await guard();
   const { error } = await db().from("players").delete().eq("id", playerId);
@@ -142,19 +164,35 @@ export async function deletePlayerAction(playerId: string) {
 
 export type EventFormState = { error?: string };
 
+const MAX_EVENT_HOURS = 18;
+
+/**
+ * An event happens on one day: one date, a start time and an optional end
+ * time. A finish time earlier than the start means it runs past midnight
+ * (9 PM to 3 AM), which `endFromSameDay` rolls onto the next day.
+ */
 function readEventForm(form: FormData) {
   const title = trimmed(form, "title");
-  const startsLocal = trimmed(form, "starts_at");
-  const endsLocal = trimmed(form, "ends_at");
+  const date = trimmed(form, "event_date");
+  const startTime = trimmed(form, "start_time");
+  const endTime = trimmed(form, "end_time");
 
   if (!title) return { error: "Give the event a name." as const };
-  if (!startsLocal) return { error: "Pick a date and time." as const };
+  if (!date) return { error: "Pick the date." as const };
+  if (!startTime) return { error: "Pick a start time." as const };
 
-  const starts_at = fromLocalInputValue(startsLocal);
-  const ends_at = endsLocal ? fromLocalInputValue(endsLocal) : null;
+  const starts_at = combineDateTime(date, startTime);
+  const ends_at = endTime ? endFromSameDay(date, startTime, endTime) : null;
 
-  if (ends_at && Date.parse(ends_at) <= Date.parse(starts_at)) {
-    return { error: "The end time has to be after the start time." as const };
+  if (ends_at) {
+    const hours = (Date.parse(ends_at) - Date.parse(starts_at)) / 3_600_000;
+    if (hours > MAX_EVENT_HOURS) {
+      return {
+        error:
+          `That works out to ${Math.round(hours)} hours. Check the times — ` +
+          "an end time before the start time is treated as the next morning.",
+      } as const;
+    }
   }
 
   return {
@@ -167,6 +205,10 @@ function readEventForm(form: FormData) {
       maps_url: nullable(form, "maps_url"),
       notes: nullable(form, "notes"),
       total_cost: parseAmount(nullable(form, "total_cost")),
+      gcash_name: nullable(form, "gcash_name"),
+      gcash_number: nullable(form, "gcash_number"),
+      qr_one_label: nullable(form, "qr_one_label"),
+      qr_two_label: nullable(form, "qr_two_label"),
     },
   };
 }
@@ -181,7 +223,7 @@ export async function createEventAction(
 
   const { data, error } = await db()
     .from("events")
-    .insert(parsed.values)
+    .insert({ ...parsed.values, created_by: await getCurrentPlayerId() })
     .select("id")
     .single();
   if (error) return { error: error.message };
@@ -212,13 +254,122 @@ export async function updateEventAction(
   redirect(`/events/${id}`);
 }
 
+/**
+ * Only the organiser or an admin deletes an event. Checked here as well as in
+ * the UI, because a Server Action is a public endpoint — though see
+ * `permissions.ts`: with a shared passcode this is a guard rail, not a lock.
+ */
 export async function deleteEventAction(eventId: string) {
   await guard();
+
+  const event = await db()
+    .from("events")
+    .select("created_by")
+    .eq("id", eventId)
+    .maybeSingle();
+  if (event.error) throw new Error(event.error.message);
+  if (!event.data) return;
+
+  if (!canManageEvent(await getViewer(), event.data)) {
+    throw new Error("Only the organiser of this event, or an admin, can delete it.");
+  }
+
+  // Clean up any payment QR images so the storage bucket does not collect
+  // orphans once the event row is gone.
+  await db().storage.from(QR_BUCKET).remove(await qrPathsFor(eventId));
+
   const { error } = await db().from("events").delete().eq("id", eventId);
   if (error) throw new Error(error.message);
   revalidatePath("/");
   revalidatePath("/calendar");
   redirect("/");
+}
+
+// ---------------------------------------------------------------------------
+// Payment QR images
+// ---------------------------------------------------------------------------
+
+const QR_BUCKET = "event-qr";
+const MAX_QR_BYTES = 5 * 1024 * 1024;
+const QR_TYPES: Record<string, string> = {
+  "image/png": "png",
+  "image/jpeg": "jpg",
+  "image/webp": "webp",
+};
+
+type QrSlot = "one" | "two";
+const slotColumn = (slot: QrSlot) => (slot === "one" ? "qr_one_path" : "qr_two_path");
+
+async function qrPathsFor(eventId: string): Promise<string[]> {
+  const { data } = await db()
+    .from("events")
+    .select("qr_one_path, qr_two_path")
+    .eq("id", eventId)
+    .maybeSingle();
+  return [data?.qr_one_path, data?.qr_two_path].filter(Boolean) as string[];
+}
+
+export type QrState = { error?: string; ok?: boolean };
+
+export async function uploadQrAction(
+  eventId: string,
+  slot: QrSlot,
+  _prev: QrState,
+  form: FormData,
+): Promise<QrState> {
+  await guard();
+
+  const file = form.get("file");
+  if (!(file instanceof File) || file.size === 0) {
+    return { error: "Choose an image first." };
+  }
+  const ext = QR_TYPES[file.type];
+  if (!ext) return { error: "That needs to be a PNG, JPG or WebP image." };
+  if (file.size > MAX_QR_BYTES) {
+    return { error: "That image is over 5 MB. Try a screenshot instead of a photo." };
+  }
+
+  const column = slotColumn(slot);
+  const previous = (
+    await db().from("events").select(column).eq("id", eventId).maybeSingle()
+  ).data as Record<string, string | null> | null;
+
+  const path = `${eventId}/${slot}-${Date.now()}.${ext}`;
+  const upload = await db()
+    .storage.from(QR_BUCKET)
+    .upload(path, file, { contentType: file.type, upsert: true });
+  if (upload.error) return { error: upload.error.message };
+
+  const { error } = await db()
+    .from("events")
+    .update({ [column]: path })
+    .eq("id", eventId);
+  if (error) return { error: error.message };
+
+  const old = previous?.[column];
+  if (old && old !== path) await db().storage.from(QR_BUCKET).remove([old]);
+
+  refreshEvent(eventId);
+  return { ok: true };
+}
+
+export async function removeQrAction(eventId: string, slot: QrSlot) {
+  await guard();
+  const column = slotColumn(slot);
+
+  const row = (await db().from("events").select(column).eq("id", eventId).maybeSingle())
+    .data as Record<string, string | null> | null;
+  const path = row?.[column];
+
+  if (path) await db().storage.from(QR_BUCKET).remove([path]);
+
+  const { error } = await db()
+    .from("events")
+    .update({ [column]: null })
+    .eq("id", eventId);
+  if (error) throw new Error(error.message);
+
+  refreshEvent(eventId);
 }
 
 /**
@@ -244,10 +395,30 @@ export async function repeatWeeklyAction(eventId: string) {
       maps_url: e.maps_url,
       notes: e.notes,
       total_cost: e.total_cost,
+      gcash_name: e.gcash_name,
+      gcash_number: e.gcash_number,
+      qr_one_label: e.qr_one_label,
+      qr_two_label: e.qr_two_label,
+      created_by: await getCurrentPlayerId(),
     })
     .select("id")
     .single();
   if (created.error) throw new Error(created.error.message);
+
+  // Give the copy its own QR files. Sharing the originals would break this
+  // event the day somebody deletes the one it was copied from.
+  for (const slot of ["one", "two"] as QrSlot[]) {
+    const from = slot === "one" ? e.qr_one_path : e.qr_two_path;
+    if (!from) continue;
+    const to = `${created.data.id}/${slot}-${Date.now()}.${from.split(".").pop()}`;
+    const copied = await db().storage.from(QR_BUCKET).copy(from, to);
+    if (!copied.error) {
+      await db()
+        .from("events")
+        .update({ [slotColumn(slot)]: to })
+        .eq("id", created.data.id);
+    }
+  }
 
   const roster = await db()
     .from("event_players")

@@ -1,8 +1,10 @@
 "use client";
 
-import { useActionState } from "react";
+import { useActionState, useMemo, useState } from "react";
 import { useFormStatus } from "react-dom";
 import Link from "next/link";
+import { Clock } from "lucide-react";
+import { formatMinutes, minutesBetweenClockTimes } from "@/lib/dates";
 import { EVENT_KINDS, type EventKind } from "@/lib/types";
 import type { EventFormState } from "@/server/actions";
 
@@ -10,18 +12,43 @@ export type EventFormValues = {
   id?: string;
   title: string;
   kind: EventKind;
-  startsAtLocal: string;
-  endsAtLocal: string;
+  date: string;
+  startTime: string;
+  endTime: string;
   venueName: string;
   mapsUrl: string;
   totalCost: string;
   notes: string;
+  gcashName: string;
+  gcashNumber: string;
+  qrOneLabel: string;
+  qrTwoLabel: string;
 };
 
 const field =
   "w-full rounded-xl border border-stone-300 bg-white px-3 py-2.5 outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-500/25 dark:border-stone-700 dark:bg-stone-900";
 
-const label = "block text-xs font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400";
+const label =
+  "block text-xs font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400";
+
+/**
+ * By default a date or time input only opens its picker when you hit the tiny
+ * icon, which is fiddly on a phone. This opens it from a tap anywhere in the
+ * field. showPicker() needs a user gesture and is not in every browser, so a
+ * failure just leaves the normal behaviour in place.
+ */
+function openPickerOnTap(e: React.MouseEvent<HTMLInputElement>) {
+  const input = e.currentTarget;
+  if (typeof input.showPicker !== "function") return;
+  try {
+    input.showPicker();
+  } catch {
+    /* Unsupported, or no user activation — the field still works as normal. */
+  }
+}
+
+/** Full-width tap area and a picker that opens from anywhere in the field. */
+const dateField = `${field} cursor-pointer [&::-webkit-calendar-picker-indicator]:cursor-pointer`;
 
 function SubmitButton({ children }: { children: React.ReactNode }) {
   const { pending } = useFormStatus();
@@ -50,6 +77,15 @@ export function EventForm({
   cancelHref: string;
 }) {
   const [state, formAction] = useActionState<EventFormState, FormData>(action, {});
+  const [startTime, setStartTime] = useState(values.startTime);
+  const [endTime, setEndTime] = useState(values.endTime);
+  const [cost, setCost] = useState(values.totalCost);
+
+  const span = useMemo(
+    () => minutesBetweenClockTimes(startTime, endTime),
+    [startTime, endTime],
+  );
+  const overnight = span !== null && endTime < startTime;
 
   return (
     <form action={formAction} className="space-y-4">
@@ -90,32 +126,74 @@ export function EventForm({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-3">
+      {/* One day, one date, two times — with the length worked out for you. */}
+      <div className="space-y-3 rounded-xl border border-stone-300 bg-white p-3 dark:border-stone-700 dark:bg-stone-900">
         <div>
-          <label className={label} htmlFor="starts_at">
-            Starts
+          <label className={label} htmlFor="event_date">
+            Date
           </label>
           <input
-            id="starts_at"
-            name="starts_at"
-            type="datetime-local"
-            defaultValue={values.startsAtLocal}
+            id="event_date"
+            name="event_date"
+            type="date"
+            defaultValue={values.date}
             required
-            className={`mt-1.5 ${field}`}
+            onClick={openPickerOnTap}
+            className={`mt-1.5 ${dateField}`}
           />
         </div>
-        <div>
-          <label className={label} htmlFor="ends_at">
-            Ends <span className="font-normal normal-case">(optional)</span>
-          </label>
-          <input
-            id="ends_at"
-            name="ends_at"
-            type="datetime-local"
-            defaultValue={values.endsAtLocal}
-            className={`mt-1.5 ${field}`}
-          />
+
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label className={label} htmlFor="start_time">
+              Starts
+            </label>
+            <input
+              id="start_time"
+              name="start_time"
+              type="time"
+              value={startTime}
+              onChange={(e) => setStartTime(e.target.value)}
+              required
+              onClick={openPickerOnTap}
+              className={`mt-1.5 ${dateField}`}
+            />
+          </div>
+          <div>
+            <label className={label} htmlFor="end_time">
+              Ends
+            </label>
+            <input
+              id="end_time"
+              name="end_time"
+              type="time"
+              value={endTime}
+              onChange={(e) => setEndTime(e.target.value)}
+              onClick={openPickerOnTap}
+              className={`mt-1.5 ${dateField}`}
+            />
+          </div>
         </div>
+
+        <p className="flex items-center gap-1.5 text-sm text-stone-600 dark:text-stone-300">
+          <Clock size={14} className="shrink-0 text-stone-400" />
+          {span === null ? (
+            <span className="text-stone-500 dark:text-stone-400">
+              Add an end time to see how long it runs.
+            </span>
+          ) : (
+            <>
+              <strong className="text-emerald-700 dark:text-emerald-400">
+                {formatMinutes(span)}
+              </strong>
+              {overnight && (
+                <span className="text-stone-500 dark:text-stone-400">
+                  · ends the next morning
+                </span>
+              )}
+            </>
+          )}
+        </p>
       </div>
 
       <div>
@@ -144,9 +222,6 @@ export function EventForm({
           placeholder="https://maps.app.goo.gl/…"
           className={`mt-1.5 ${field}`}
         />
-        <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-          Share the place in Google Maps and paste the link here.
-        </p>
       </div>
 
       <div>
@@ -161,7 +236,8 @@ export function EventForm({
             id="total_cost"
             name="total_cost"
             inputMode="decimal"
-            defaultValue={values.totalCost}
+            value={cost}
+            onChange={(e) => setCost(e.target.value)}
             placeholder="2000"
             className={`${field} pl-7`}
           />
@@ -170,6 +246,71 @@ export function EventForm({
           Split between whoever actually shows up. Leave blank if nobody is paying.
         </p>
       </div>
+
+      {/* Only worth asking about once there is money involved. */}
+      {cost.trim() !== "" && (
+        <fieldset className="space-y-3 rounded-xl border border-stone-300 bg-white p-3 dark:border-stone-700 dark:bg-stone-900">
+          <legend className={`${label} px-1`}>How people pay you</legend>
+          <p className="text-xs text-stone-500 dark:text-stone-400">
+            Shown to everyone who owes money. You can add the QR images after saving.
+          </p>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label} htmlFor="gcash_name">
+                Account name
+              </label>
+              <input
+                id="gcash_name"
+                name="gcash_name"
+                defaultValue={values.gcashName}
+                placeholder="Ricky L."
+                className={`mt-1.5 ${field}`}
+              />
+            </div>
+            <div>
+              <label className={label} htmlFor="gcash_number">
+                GCash number
+              </label>
+              <input
+                id="gcash_number"
+                name="gcash_number"
+                inputMode="tel"
+                defaultValue={values.gcashNumber}
+                placeholder="0917 123 4567"
+                className={`mt-1.5 ${field}`}
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className={label} htmlFor="qr_one_label">
+                QR 1 label
+              </label>
+              <input
+                id="qr_one_label"
+                name="qr_one_label"
+                defaultValue={values.qrOneLabel}
+                placeholder="GCash"
+                className={`mt-1.5 ${field}`}
+              />
+            </div>
+            <div>
+              <label className={label} htmlFor="qr_two_label">
+                QR 2 label
+              </label>
+              <input
+                id="qr_two_label"
+                name="qr_two_label"
+                defaultValue={values.qrTwoLabel}
+                placeholder="BPI / Maya"
+                className={`mt-1.5 ${field}`}
+              />
+            </div>
+          </div>
+        </fieldset>
+      )}
 
       <div>
         <label className={label} htmlFor="notes">

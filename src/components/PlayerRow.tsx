@@ -1,13 +1,14 @@
 "use client";
 
 import { useState, useTransition } from "react";
-import { Check, Trash2, UserMinus, UserPlus } from "lucide-react";
+import { Check, Crown, Trash2, UserMinus, UserPlus } from "lucide-react";
 import { Avatar } from "@/components/Avatar";
 import type { Player } from "@/lib/types";
 import {
   deletePlayerAction,
   renamePlayerAction,
   setPlayerActiveAction,
+  setPlayerAdminAction,
 } from "@/server/actions";
 
 export function PlayerRow({ player, isMe }: { player: Player; isMe: boolean }) {
@@ -42,6 +43,25 @@ export function PlayerRow({ player, isMe }: { player: Player; isMe: boolean }) {
             you
           </span>
         )}
+
+        <button
+          type="button"
+          title={
+            player.is_admin
+              ? `${player.name} is an admin — tap to remove`
+              : `Make ${player.name} an admin (can delete anyone's event)`
+          }
+          onClick={() =>
+            startTransition(() => setPlayerAdminAction(player.id, !player.is_admin))
+          }
+          className={`shrink-0 rounded p-2.5 transition ${
+            player.is_admin
+              ? "text-amber-500 hover:bg-amber-50 dark:hover:bg-amber-950/40"
+              : "text-stone-300 hover:bg-stone-100 hover:text-stone-600 dark:text-stone-600 dark:hover:bg-stone-800"
+          }`}
+        >
+          <Crown size={15} fill={player.is_admin ? "currentColor" : "none"} />
+        </button>
 
         <button
           type="button"

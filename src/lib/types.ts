@@ -6,6 +6,7 @@ export type Player = {
   name: string;
   color: string;
   is_active: boolean;
+  is_admin: boolean;
   created_at: string;
 };
 
@@ -19,6 +20,13 @@ export type EventRow = {
   maps_url: string | null;
   notes: string | null;
   total_cost: number | null;
+  created_by: string | null;
+  gcash_name: string | null;
+  gcash_number: string | null;
+  qr_one_path: string | null;
+  qr_one_label: string | null;
+  qr_two_path: string | null;
+  qr_two_label: string | null;
   created_at: string;
 };
 

@@ -2,14 +2,26 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ChevronLeft, MapPin, Pencil } from "lucide-react";
 import { getCurrentPlayerId } from "@/lib/auth";
-import { formatDayLong, formatTimeRange, isPast, relativeDay } from "@/lib/dates";
-import { formatPeso, splitCost, type MoneyRow } from "@/lib/money";
+import {
+  durationLabel,
+  eventPhase,
+  formatDayLong,
+  formatTimeRange,
+  relativeDay,
+} from "@/lib/dates";
+import { formatPeso, splitCost } from "@/lib/money";
 import { buildSummary } from "@/lib/summary";
 import { kindMeta } from "@/lib/types";
-import { getEvent, getParticipants, getPlayers } from "@/server/data";
-import { EventTabs } from "@/components/EventTabs";
+import {
+  getEvent,
+  getParticipants,
+  getPlayers,
+  signQr,
+  toMoneyRows,
+} from "@/server/data";
 import { RsvpPanel } from "@/components/RsvpPanel";
 import { MoneyPanel } from "@/components/MoneyPanel";
+import { PayWith, type PayOption } from "@/components/PayWith";
 import {
   AutoRefresh,
   CopySummaryButton,
@@ -34,21 +46,27 @@ export default async function EventPage({
 
   if (!event) notFound();
 
-  const moneyRows: MoneyRow[] = participants.map((p) => ({
-    playerId: p.player_id,
-    attended: p.attended,
-    shareOverride: p.share_override,
-    paid: p.paid,
-  }));
-
-  const split = splitCost(event.total_cost, moneyRows);
+  const split = splitCost(event.total_cost, toMoneyRows(participants));
   const summary = buildSummary(event, participants, split);
   const meta = kindMeta(event.kind);
-  const over = isPast(event.starts_at, event.ends_at);
+
+  // The single most important line of this file: before it starts you are
+  // collecting RSVPs, from the moment it starts you are ticking off who came.
+  const phase = eventPhase(event.starts_at, event.ends_at);
+  const collectingRsvps = phase === "upcoming";
 
   const missingFromRoster = players.filter(
     (p) => p.is_active && !participants.some((x) => x.player_id === p.id),
   ).length;
+
+  const [qrOne, qrTwo] = await Promise.all([
+    signQr(event.qr_one_path),
+    signQr(event.qr_two_path),
+  ]);
+  const payOptions: PayOption[] = [
+    qrOne ? { label: event.qr_one_label || "GCash", url: qrOne } : null,
+    qrTwo ? { label: event.qr_two_label || "Bank", url: qrTwo } : null,
+  ].filter(Boolean) as PayOption[];
 
   return (
     <div className="space-y-4">
@@ -70,15 +88,24 @@ export default async function EventPage({
       </div>
 
       <header className="rounded-2xl border border-stone-200 bg-white p-4 dark:border-stone-800 dark:bg-stone-900">
-        <h1 className="flex items-start gap-2 text-xl font-bold tracking-tight">
-          <span aria-hidden>{meta.emoji}</span>
-          <span className="min-w-0">{event.title}</span>
-        </h1>
+        <div className="flex items-start gap-2">
+          <span className="text-xl leading-tight" aria-hidden>
+            {meta.emoji}
+          </span>
+          <h1 className="min-w-0 flex-1 text-xl font-bold tracking-tight">
+            {event.title}
+          </h1>
+          {phase === "live" && (
+            <span className="shrink-0 animate-pulse rounded-full bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white">
+              HAPPENING NOW
+            </span>
+          )}
+        </div>
 
         <p className="mt-1.5 text-sm">
           <span
             className={
-              over
+              phase === "past"
                 ? "text-stone-500 dark:text-stone-400"
                 : "font-semibold text-emerald-700 dark:text-emerald-400"
             }
@@ -92,6 +119,12 @@ export default async function EventPage({
         </p>
         <p className="text-sm text-stone-600 dark:text-stone-300">
           {formatTimeRange(event.starts_at, event.ends_at)}
+          {event.ends_at && (
+            <span className="text-stone-400">
+              {" "}
+              · {durationLabel(event.starts_at, event.ends_at)}
+            </span>
+          )}
         </p>
 
         {event.venue_name && (
@@ -118,38 +151,48 @@ export default async function EventPage({
           </p>
         )}
 
-        {event.total_cost != null && (
+        {event.total_cost != null && collectingRsvps && (
           <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">
             Venue cost{" "}
             <strong className="text-stone-800 dark:text-stone-100">
               {formatPeso(event.total_cost)}
             </strong>
-            , split between whoever came.
+            , split between whoever turns up.
           </p>
         )}
       </header>
 
-      <EventTabs
-        initial={over ? "money" : "rsvp"}
-        moneyLabel={event.total_cost != null ? "Came & paid" : "Who came"}
-        rsvpPanel={
+      <section>
+        <h2 className="mb-2 px-1 text-xs font-semibold tracking-wide text-stone-500 uppercase dark:text-stone-400">
+          {collectingRsvps ? "Who's coming" : "Who came"}
+        </h2>
+
+        {collectingRsvps ? (
           <RsvpPanel
             eventId={event.id}
             participants={participants}
             meId={meId}
             missingFromRoster={missingFromRoster}
           />
-        }
-        moneyPanel={
-          <MoneyPanel
-            eventId={event.id}
-            participants={participants}
-            split={split}
-            totalCost={event.total_cost}
-            meId={meId}
-          />
-        }
-      />
+        ) : (
+          <>
+            <MoneyPanel
+              eventId={event.id}
+              participants={participants}
+              split={split}
+              totalCost={event.total_cost}
+              meId={meId}
+            />
+            {split.outstanding > 0 && (
+              <PayWith
+                gcashName={event.gcash_name}
+                gcashNumber={event.gcash_number}
+                options={payOptions}
+              />
+            )}
+          </>
+        )}
+      </section>
 
       <div className="flex gap-2">
         <CopySummaryButton text={summary} />

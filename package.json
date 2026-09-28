@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --test src/lib/money.test.ts src/lib/summary.test.ts"
+    "test": "node --test src/lib/money.test.ts src/lib/summary.test.ts src/lib/dates.test.ts"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.117.2",
