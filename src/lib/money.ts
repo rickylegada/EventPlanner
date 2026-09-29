@@ -54,6 +54,64 @@ export type MoneySplit = {
 const toCentavos = (pesos: number) => Math.round(pesos * 100);
 const toPesos = (centavos: number) => centavos / 100;
 
+export type PricingMode = "split" | "per_head";
+
+/**
+ * Two ways an event costs money.
+ *
+ *   split     one booking fee, divided between whoever came. The total is
+ *             fixed and the per-person share depends on the headcount.
+ *   per_head  everyone pays the same fixed amount. The per-person figure is
+ *             fixed and the total depends on the headcount.
+ */
+export type Pricing =
+  | { mode: "split"; totalCost: number | null | undefined }
+  | { mode: "per_head"; pricePerHead: number | null | undefined };
+
+/** Works out what everyone owes, whichever way the event is priced. */
+export function computeMoney(pricing: Pricing, rows: MoneyRow[]): MoneySplit {
+  return pricing.mode === "per_head"
+    ? perHeadCost(pricing.pricePerHead, rows)
+    : splitCost(pricing.totalCost, rows);
+}
+
+/**
+ * Fixed price each: nobody subsidises anybody, so there is no remainder to
+ * distribute and no way for overrides to overshoot a total — the total is
+ * simply whatever the people who turned up add up to.
+ */
+export function perHeadCost(
+  pricePerHead: number | null | undefined,
+  rows: MoneyRow[],
+): MoneySplit {
+  const attendees = rows.filter((r) => r.attended);
+  const price = pricePerHead && pricePerHead > 0 ? pricePerHead : 0;
+
+  const shares: MoneyShare[] = attendees.map((r) => {
+    const override = r.shareOverride;
+    const amount = override !== null ? Math.max(0, override) : price;
+    return {
+      playerId: r.playerId,
+      share: toPesos(toCentavos(amount)),
+      isOverride: override !== null,
+      paid: r.paid,
+    };
+  });
+
+  const assignedCentavos = shares.reduce((t, s) => t + toCentavos(s.share), 0);
+
+  return finalize({
+    shares,
+    byPlayer: {},
+    total: toPesos(assignedCentavos),
+    assigned: 0,
+    collected: 0,
+    outstanding: 0,
+    attendeeCount: attendees.length,
+    warning: price > 0 && attendees.length === 0 ? "no-attendees" : "none",
+  });
+}
+
 export function splitCost(
   totalCost: number | null | undefined,
   rows: MoneyRow[],

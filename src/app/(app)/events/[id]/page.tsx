@@ -9,9 +9,9 @@ import {
   formatTimeRange,
   relativeDay,
 } from "@/lib/dates";
-import { formatPeso, splitCost } from "@/lib/money";
+import { computeMoney, formatPeso } from "@/lib/money";
 import { buildSummary } from "@/lib/summary";
-import { kindMeta } from "@/lib/types";
+import { eventPricing, hasCost, kindMeta } from "@/lib/types";
 import { qrLabel } from "@/lib/payments";
 import {
   getEvent,
@@ -44,7 +44,7 @@ export default async function EventPage({
 
   if (!event) notFound();
 
-  const split = splitCost(event.total_cost, toMoneyRows(participants));
+  const split = computeMoney(eventPricing(event), toMoneyRows(participants));
   const summary = buildSummary(event, participants, split);
   const meta = kindMeta(event.kind);
 
@@ -153,13 +153,24 @@ export default async function EventPage({
           </p>
         )}
 
-        {event.total_cost != null && collectingRsvps && (
+        {hasCost(event) && collectingRsvps && (
           <p className="mt-3 text-sm text-stone-500 dark:text-stone-400">
-            Venue cost{" "}
-            <strong className="text-stone-800 dark:text-stone-100">
-              {formatPeso(event.total_cost)}
-            </strong>
-            , split between whoever turns up.
+            {event.pricing_mode === "per_head" ? (
+              <>
+                <strong className="text-stone-800 dark:text-stone-100">
+                  {formatPeso(event.price_per_head as number)}
+                </strong>{" "}
+                per player.
+              </>
+            ) : (
+              <>
+                Venue cost{" "}
+                <strong className="text-stone-800 dark:text-stone-100">
+                  {formatPeso(event.total_cost as number)}
+                </strong>
+                , split between whoever turns up.
+              </>
+            )}
           </p>
         )}
       </header>
@@ -169,8 +180,7 @@ export default async function EventPage({
         the session — so nudge for them whenever money is involved and they
         are still missing.
       */}
-      {event.total_cost != null &&
-        event.total_cost > 0 &&
+      {hasCost(event) &&
         !event.gcash_number &&
         payOptions.length === 0 && (
           <Link
@@ -201,7 +211,10 @@ export default async function EventPage({
               eventId={event.id}
               participants={participants}
               split={split}
-              totalCost={event.total_cost}
+              hasMoney={hasCost(event)}
+              perHeadPrice={
+                event.pricing_mode === "per_head" ? event.price_per_head : null
+              }
               meId={meId}
             />
             {split.outstanding > 0 && (

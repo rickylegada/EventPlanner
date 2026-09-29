@@ -24,7 +24,8 @@ export default function NewEventPage() {
           endTime: "20:00",
           venueName: "",
           mapsUrl: "",
-          totalCost: "",
+          pricingMode: "split",
+          amount: "",
           notes: "",
         }}
       />

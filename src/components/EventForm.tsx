@@ -17,7 +17,8 @@ export type EventFormValues = {
   endTime: string;
   venueName: string;
   mapsUrl: string;
-  totalCost: string;
+  pricingMode: "split" | "per_head";
+  amount: string;
   notes: string;
 };
 
@@ -75,6 +76,8 @@ export function EventForm({
   const [state, formAction] = useActionState<EventFormState, FormData>(action, {});
   const [startTime, setStartTime] = useState(values.startTime);
   const [endTime, setEndTime] = useState(values.endTime);
+  const [mode, setMode] = useState(values.pricingMode);
+  const perHead = mode === "per_head";
 
   const span = useMemo(
     () => minutesBetweenClockTimes(startTime, endTime),
@@ -219,27 +222,66 @@ export function EventForm({
         />
       </div>
 
-      <div>
-        <label className={label} htmlFor="total_cost">
-          Total cost
-        </label>
-        <div className="relative mt-1.5">
-          <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-stone-400">
-            ₱
-          </span>
-          <input
-            id="total_cost"
-            name="total_cost"
-            inputMode="decimal"
-            defaultValue={values.totalCost}
-            placeholder="2000"
-            className={`${field} pl-7`}
-          />
+      {/*
+        Two ways a session costs money, and they behave oppositely: one fixes
+        the total and divides it, the other fixes the per-person price and lets
+        the total follow the headcount. Picking first makes the amount field
+        below unambiguous.
+      */}
+      <fieldset className="space-y-3 rounded-xl border border-stone-300 bg-white p-3 dark:border-stone-700 dark:bg-stone-900">
+        <legend className={`${label} px-1`}>Cost</legend>
+
+        <div className="grid grid-cols-2 gap-2">
+          {(
+            [
+              { value: "split", title: "Split a total", hint: "One court fee" },
+              { value: "per_head", title: "Fixed each", hint: "Price per player" },
+            ] as const
+          ).map((m) => (
+            <label
+              key={m.value}
+              className="cursor-pointer rounded-xl border border-stone-300 px-2.5 py-2 text-center transition has-checked:border-emerald-500 has-checked:bg-emerald-50 has-checked:text-emerald-800 dark:border-stone-700 dark:has-checked:bg-emerald-950 dark:has-checked:text-emerald-300"
+            >
+              <input
+                type="radio"
+                name="pricing_mode"
+                value={m.value}
+                checked={mode === m.value}
+                onChange={() => setMode(m.value)}
+                className="sr-only"
+              />
+              <span className="block text-sm font-semibold">{m.title}</span>
+              <span className="block text-[11px] opacity-70">{m.hint}</span>
+            </label>
+          ))}
         </div>
-        <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
-          Split between whoever actually shows up. Leave blank if nobody is paying.
-        </p>
-      </div>
+
+        <div>
+          <label className={label} htmlFor="amount">
+            {perHead ? "Price per player" : "Total to split"}
+          </label>
+          <div className="relative mt-1.5">
+            <span className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-stone-400">
+              ₱
+            </span>
+            <input
+              id="amount"
+              name="amount"
+              inputMode="decimal"
+              defaultValue={values.amount}
+              key={perHead ? "per-head" : "split"}
+              placeholder={perHead ? "350" : "2000"}
+              className={`${field} pl-7`}
+            />
+          </div>
+          <p className="mt-1 text-xs text-stone-500 dark:text-stone-400">
+            {perHead
+              ? "Everyone who comes pays this. The total grows with the headcount."
+              : "Divided between whoever actually shows up."}{" "}
+            Leave blank if nobody is paying.
+          </p>
+        </div>
+      </fieldset>
 
       <div>
         <label className={label} htmlFor="notes">

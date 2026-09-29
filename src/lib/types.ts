@@ -1,3 +1,5 @@
+import type { PricingMode } from "@/lib/money";
+
 export type EventKind = "pickleball" | "party" | "other";
 export type Rsvp = "going" | "maybe" | "out" | "no_reply";
 
@@ -20,6 +22,8 @@ export type EventRow = {
   maps_url: string | null;
   notes: string | null;
   total_cost: number | null;
+  pricing_mode: PricingMode;
+  price_per_head: number | null;
   created_by: string | null;
   gcash_name: string | null;
   gcash_number: string | null;
@@ -57,6 +61,27 @@ export const RSVP_LABELS: Record<Rsvp, string> = {
   out: "Can't go",
   no_reply: "No reply",
 };
+
+/** The one amount that applies, whichever way the event is priced. */
+export function eventPricing(e: {
+  pricing_mode: PricingMode;
+  total_cost: number | null;
+  price_per_head: number | null;
+}) {
+  return e.pricing_mode === "per_head"
+    ? ({ mode: "per_head", pricePerHead: e.price_per_head } as const)
+    : ({ mode: "split", totalCost: e.total_cost } as const);
+}
+
+/** Does this event involve money at all? */
+export function hasCost(e: {
+  pricing_mode: PricingMode;
+  total_cost: number | null;
+  price_per_head: number | null;
+}) {
+  const amount = e.pricing_mode === "per_head" ? e.price_per_head : e.total_cost;
+  return amount != null && amount > 0;
+}
 
 export function kindMeta(kind: EventKind) {
   return EVENT_KINDS.find((k) => k.value === kind) ?? EVENT_KINDS[2];

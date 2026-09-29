@@ -195,6 +195,9 @@ function readEventForm(form: FormData) {
     }
   }
 
+  const perHead = trimmed(form, "pricing_mode") === "per_head";
+  const amount = parseAmount(nullable(form, "amount"));
+
   return {
     values: {
       title,
@@ -204,7 +207,11 @@ function readEventForm(form: FormData) {
       venue_name: nullable(form, "venue_name"),
       maps_url: nullable(form, "maps_url"),
       notes: nullable(form, "notes"),
-      total_cost: parseAmount(nullable(form, "total_cost")),
+      // Only one of these is ever set; the other is cleared so a stale figure
+      // cannot resurface when the mode changes.
+      pricing_mode: perHead ? "per_head" : "split",
+      total_cost: perHead ? null : amount,
+      price_per_head: perHead ? amount : null,
     },
   };
 }
@@ -417,6 +424,8 @@ export async function repeatWeeklyAction(eventId: string) {
       maps_url: e.maps_url,
       notes: e.notes,
       total_cost: e.total_cost,
+      pricing_mode: e.pricing_mode,
+      price_per_head: e.price_per_head,
       gcash_name: e.gcash_name,
       gcash_number: e.gcash_number,
       qr_one_label: e.qr_one_label,

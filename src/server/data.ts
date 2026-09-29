@@ -1,9 +1,9 @@
 import "server-only";
 import { cache } from "react";
 import { db, unwrap } from "@/lib/supabase";
-import { splitCost, type MoneyRow } from "@/lib/money";
+import { computeMoney, type MoneyRow } from "@/lib/money";
 import { buildSummary } from "@/lib/summary";
-import type { EventRow, Participant, Player } from "@/lib/types";
+import { eventPricing, type EventRow, type Participant, type Player } from "@/lib/types";
 
 /** Postgres `numeric` can arrive as a string; make it a number or null. */
 const num = (v: unknown): number | null =>
@@ -12,6 +12,7 @@ const num = (v: unknown): number | null =>
 const normalizeEvent = (row: Record<string, unknown>): EventRow => ({
   ...(row as unknown as EventRow),
   total_cost: num(row.total_cost),
+  price_per_head: num(row.price_per_head),
 });
 
 const byName = (a: { player: Player }, b: { player: Player }) =>
@@ -133,7 +134,7 @@ export const getEventSummaries = cache(async (): Promise<Record<string, EventSum
       paid: r.paid,
     }));
 
-    const split = splitCost(event.total_cost, moneyRows);
+    const split = computeMoney(eventPricing(event), moneyRows);
     const shares = split.shares.map((s) => s.share);
 
     // The same text the event page would produce, so sharing from a card and
@@ -141,7 +142,7 @@ export const getEventSummaries = cache(async (): Promise<Record<string, EventSum
     summary.shareText = buildSummary(
       event,
       participants,
-      splitCost(event.total_cost, toMoneyRows(participants)),
+      computeMoney(eventPricing(event), toMoneyRows(participants)),
     );
 
     summary.splitAmong = split.attendeeCount;

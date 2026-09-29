@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { buildSummary } from "./summary.ts";
-import { splitCost, type MoneyRow } from "./money.ts";
+import { perHeadCost, splitCost, type MoneyRow } from "./money.ts";
 import type { EventRow, Participant, Rsvp } from "./types.ts";
 
 const event: EventRow = {
@@ -15,6 +15,8 @@ const event: EventRow = {
   maps_url: "https://maps.app.goo.gl/example",
   notes: null,
   total_cost: 2000,
+  pricing_mode: "split" as const,
+  price_per_head: null,
   created_by: null,
   gcash_name: null,
   gcash_number: null,
@@ -130,4 +132,39 @@ test("a free event skips the money section entirely", () => {
 
   assert.match(text, /🎉 Christmas Party/);
   assert.doesNotMatch(text, /💰/);
+});
+
+test("a per-head event leads with the price each, not the total", () => {
+  const perHead = {
+    ...event,
+    pricing_mode: "per_head" as const,
+    total_cost: null,
+    price_per_head: 350,
+  };
+  const people = [
+    participant("Ricky", { attended: true, paid: true }),
+    participant("Jun", { attended: true }),
+  ];
+  const text = buildSummary(
+    perHead,
+    people,
+    perHeadCost(350, toMoneyRows(people)),
+  );
+
+  assert.match(text, /💰 ₱350 each — ₱700 total/);
+  assert.match(text, /• Jun — ₱350/);
+});
+
+test("before a per-head event, the price each is already known", () => {
+  const perHead = {
+    ...event,
+    pricing_mode: "per_head" as const,
+    total_cost: null,
+    price_per_head: 350,
+  };
+  const people = [participant("Ricky", { rsvp: "going" })];
+  const text = buildSummary(perHead, people, perHeadCost(350, toMoneyRows(people)));
+
+  assert.match(text, /💰 ₱350 each/);
+  assert.doesNotMatch(text, /split by whoever/);
 });

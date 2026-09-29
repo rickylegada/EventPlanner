@@ -9,7 +9,7 @@ import {
   relativeDay,
 } from "@/lib/dates";
 import { formatPeso } from "@/lib/money";
-import { kindMeta, type EventRow } from "@/lib/types";
+import { hasCost, kindMeta, type EventRow } from "@/lib/types";
 import type { EventSummary } from "@/server/data";
 
 export function EventCard({
@@ -25,10 +25,13 @@ export function EventCard({
 
   const s = summary;
   const headcount = past ? (s?.attended ?? 0) : (s?.going ?? 0);
-  const perHead = s?.perHead ?? null;
+  /** What each attendee worked out to, once people were ticked off. */
+  const settledPerHead = s?.perHead ?? null;
   const unpaid = s?.unpaid ?? 0;
   const outstanding = s?.outstanding ?? 0;
-  const hasCost = event.total_cost != null && event.total_cost > 0;
+  const costed = hasCost(event);
+  /** A fixed price each is known before anyone turns up; a split is not. */
+  const fixedPrice = event.pricing_mode === "per_head" ? event.price_per_head : null;
 
   return (
     // The link is stretched across the whole card rather than wrapping it, so
@@ -106,25 +109,24 @@ export function EventCard({
           tone={past ? "plain" : "green"}
         />
 
-        {hasCost && (
-          // Before the event the split is guesswork, so show the venue cost
-          // itself. Only once people are ticked off does per-head mean anything.
-          <Stat
-            value={
-              past && perHead !== null && perHead > 0
-                ? formatPeso(perHead)
-                : formatPeso(event.total_cost!)
-            }
-            label={past && perHead !== null && perHead > 0 ? "each" : "venue"}
-            tone="plain"
-          />
-        )}
+        {costed &&
+          (fixedPrice !== null ? (
+            // A fixed price each is the same number before and after, so it
+            // can be stated plainly from the moment the event is created.
+            <Stat value={formatPeso(fixedPrice)} label="each" tone="plain" />
+          ) : past && settledPerHead !== null && settledPerHead > 0 ? (
+            <Stat value={formatPeso(settledPerHead)} label="each" tone="plain" />
+          ) : (
+            // A split is guesswork until people are ticked off, so show the
+            // court fee itself rather than a share that will move.
+            <Stat value={formatPeso(event.total_cost!)} label="venue" tone="plain" />
+          ))}
 
-        {hasCost && past && unpaid > 0 && (
+        {costed && past && unpaid > 0 && (
           <Stat value={formatPeso(outstanding)} label="unpaid" tone="amber" />
         )}
 
-        {hasCost && past && unpaid === 0 && headcount > 0 && (
+        {costed && past && unpaid === 0 && headcount > 0 && (
           <Stat icon={<Check size={13} />} label="all paid" tone="green" />
         )}
       </div>

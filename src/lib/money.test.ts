@@ -1,6 +1,12 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { splitCost, formatPeso, type MoneyRow } from "./money.ts";
+import {
+  computeMoney,
+  formatPeso,
+  perHeadCost,
+  splitCost,
+  type MoneyRow,
+} from "./money.ts";
 
 const row = (
   playerId: string,
@@ -124,4 +130,99 @@ test("peso formatting drops the .00 on whole amounts", () => {
   assert.equal(formatPeso(200), "₱200");
   assert.equal(formatPeso(666.67), "₱666.67");
   assert.equal(formatPeso(2000), "₱2,000");
+});
+
+// ---------------------------------------------------------------------------
+// Fixed price per person
+// ---------------------------------------------------------------------------
+
+test("per head: everyone who came owes the same fixed amount", () => {
+  const split = perHeadCost(350, [
+    row("a", true),
+    row("b", true),
+    row("c", true),
+    row("no-show", false),
+  ]);
+
+  assert.equal(split.attendeeCount, 3);
+  for (const s of split.shares) assert.equal(s.share, 350);
+  // The total follows the headcount, rather than the other way round.
+  assert.equal(split.total, 1050);
+  assert.equal(split.assigned, 1050);
+  assert.equal(split.warning, "none");
+});
+
+test("per head: one more person means more money, not a smaller share", () => {
+  const three = perHeadCost(350, [row("a", true), row("b", true), row("c", true)]);
+  const four = perHeadCost(350, [
+    row("a", true),
+    row("b", true),
+    row("c", true),
+    row("d", true),
+  ]);
+
+  assert.equal(three.total, 1050);
+  assert.equal(four.total, 1400);
+  assert.equal(four.byPlayer["a"].share, 350, "existing shares do not move");
+});
+
+test("per head: an override replaces just that person's price", () => {
+  const split = perHeadCost(350, [
+    row("half-rate", true, 150),
+    row("b", true),
+    row("c", true),
+  ]);
+
+  assert.equal(split.byPlayer["half-rate"].share, 150);
+  assert.equal(split.byPlayer["half-rate"].isOverride, true);
+  assert.equal(split.byPlayer["b"].share, 350);
+  assert.equal(split.total, 850);
+  assert.equal(split.warning, "none", "overrides cannot overshoot a per-head total");
+});
+
+test("per head: collected and outstanding follow the paid toggles", () => {
+  const split = perHeadCost(200, [
+    row("a", true, null, true),
+    row("b", true, null, false),
+    row("c", true, null, false),
+  ]);
+
+  assert.equal(split.total, 600);
+  assert.equal(split.collected, 200);
+  assert.equal(split.outstanding, 400);
+});
+
+test("per head: a price with nobody there is flagged, and totals zero", () => {
+  const split = perHeadCost(350, [row("a", false), row("b", false)]);
+
+  assert.equal(split.warning, "no-attendees");
+  assert.equal(split.total, 0);
+  assert.equal(split.assigned, 0);
+});
+
+test("per head: no price set means nobody owes anything", () => {
+  for (const price of [null, undefined, 0]) {
+    const split = perHeadCost(price, [row("a", true), row("b", true)]);
+    assert.equal(split.total, 0);
+    assert.equal(split.warning, "none");
+    assert.ok(split.shares.every((s) => s.share === 0));
+  }
+});
+
+test("computeMoney routes to the right pricing model", () => {
+  const rows = [row("a", true), row("b", true), row("c", true)];
+
+  const split = computeMoney({ mode: "split", totalCost: 900 }, rows);
+  assert.equal(split.total, 900);
+  assert.equal(split.byPlayer["a"].share, 300);
+
+  const perHead = computeMoney({ mode: "per_head", pricePerHead: 300 }, rows);
+  assert.equal(perHead.total, 900);
+  assert.equal(perHead.byPlayer["a"].share, 300);
+});
+
+test("per head keeps centavo prices exact", () => {
+  const split = perHeadCost(333.33, [row("a", true), row("b", true), row("c", true)]);
+  assert.equal(split.total, 999.99);
+  assert.equal(split.assigned, 999.99);
 });

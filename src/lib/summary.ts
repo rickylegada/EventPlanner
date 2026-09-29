@@ -4,7 +4,7 @@
  */
 import { formatPeso, type MoneySplit } from "./money.ts";
 import { formatDayShort, formatTimeRange } from "./dates.ts";
-import { kindMeta, type EventRow, type Participant } from "./types.ts";
+import { hasCost, kindMeta, type EventRow, type Participant } from "./types.ts";
 
 const names = (list: Participant[]) =>
   list.map((p) => p.player.name).join(", ");
@@ -39,9 +39,15 @@ export function buildSummary(
     if (out.length) lines.push(`❌ Can't go (${out.length}): ${names(out)}`);
     if (quiet.length) lines.push(`⬜ No reply (${quiet.length}): ${names(quiet)}`);
 
-    if (event.total_cost) {
+    // A fixed price per person is already known before anyone turns up; a
+    // split is not, so say so rather than implying a figure.
+    if (hasCost(event)) {
       lines.push("");
-      lines.push(`💰 Venue: ${formatPeso(event.total_cost)}, split by whoever shows up`);
+      lines.push(
+        event.pricing_mode === "per_head"
+          ? `💰 ${formatPeso(event.price_per_head as number)} each`
+          : `💰 Venue: ${formatPeso(event.total_cost as number)}, split by whoever shows up`,
+      );
     }
     return lines.join("\n");
   }
@@ -55,9 +61,13 @@ export function buildSummary(
     const uniform = shares.every((s) => s === shares[0]);
 
     lines.push("");
+    // Lead with whichever figure was the fixed one, since that is the number
+    // people recognise: a set price each, or a court fee being divided.
     lines.push(
       uniform
-        ? `💰 Total ${formatPeso(split.total)} — ${formatPeso(shares[0])} each`
+        ? event.pricing_mode === "per_head"
+          ? `💰 ${formatPeso(shares[0])} each — ${formatPeso(split.total)} total`
+          : `💰 Total ${formatPeso(split.total)} — ${formatPeso(shares[0])} each`
         : `💰 Total ${formatPeso(split.total)}`,
     );
 

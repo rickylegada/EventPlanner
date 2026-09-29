@@ -5,6 +5,7 @@ import { toDateAndTimes } from "@/lib/dates";
 import { getEvent, getPlayers, signQr } from "@/server/data";
 import { updateEventAction } from "@/server/actions";
 import { canManageEvent, getViewer, manageDeniedReason } from "@/server/permissions";
+import { hasCost } from "@/lib/types";
 import { EventForm } from "@/components/EventForm";
 import { DeleteEventButton } from "@/components/DeleteEventButton";
 import { PaymentSection } from "@/components/PaymentSection";
@@ -57,12 +58,17 @@ export default async function EditEventPage({
           endTime: times.endTime,
           venueName: event.venue_name ?? "",
           mapsUrl: event.maps_url ?? "",
-          totalCost: event.total_cost != null ? String(event.total_cost) : "",
+          pricingMode: event.pricing_mode,
+          amount: String(
+            (event.pricing_mode === "per_head"
+              ? event.price_per_head
+              : event.total_cost) ?? "",
+          ),
           notes: event.notes ?? "",
         }}
       />
 
-      {event.total_cost != null && (
+      {hasCost(event) && (
         <PaymentSection
           eventId={event.id}
           gcashName={event.gcash_name ?? ""}

@@ -26,19 +26,21 @@ export function MoneyPanel({
   eventId,
   participants,
   split,
-  totalCost,
+  hasMoney,
+  perHeadPrice,
   meId,
 }: {
   eventId: string;
   participants: Participant[];
   split: MoneySplit;
-  totalCost: number | null;
+  hasMoney: boolean;
+  /** Set only when the event charges a fixed amount per person. */
+  perHeadPrice: number | null;
   meId: string | null;
 }) {
   const [pending, startTransition] = useTransition();
   const [walkIn, setWalkIn] = useState("");
 
-  const hasMoney = totalCost != null && totalCost > 0;
   const pendingGoing = participants.filter((p) => p.rsvp === "going" && !p.attended);
   const here = participants.filter((p) => p.attended).length;
 
@@ -51,7 +53,7 @@ export function MoneyPanel({
 
   return (
     <div className={pending ? "opacity-60 transition-opacity" : "transition-opacity"}>
-      {hasMoney && <MoneyHeader split={split} />}
+      {hasMoney && <MoneyHeader split={split} perHead={perHeadPrice} />}
       {hasMoney && <Warning warning={split.warning} />}
 
       {participants.length > 0 && (
@@ -136,21 +138,32 @@ export function MoneyPanel({
   );
 }
 
-function MoneyHeader({ split }: { split: MoneySplit }) {
+function MoneyHeader({ split, perHead }: { split: MoneySplit; perHead: number | null }) {
   const pct =
     split.assigned > 0 ? Math.round((split.collected / split.assigned) * 100) : 0;
   const settled = split.assigned > 0 && split.outstanding === 0;
 
   return (
     <div className="mb-3 rounded-2xl border border-stone-200 bg-white p-4 shadow-sm dark:border-stone-800 dark:bg-stone-900 dark:shadow-none">
+      {/*
+        Lead with whichever number is the fixed one. For a split that is the
+        court fee; for a fixed price each it is the price, with the running
+        total underneath since that is what grows as people arrive.
+      */}
       <div className="flex items-baseline justify-between">
         <span className="text-2xl font-bold tabular-nums">
-          {formatPeso(split.total)}
+          {perHead !== null ? formatPeso(perHead) : formatPeso(split.total)}
         </span>
         <span className="text-sm text-stone-500 dark:text-stone-400">
           {split.attendeeCount} {split.attendeeCount === 1 ? "person" : "people"} came
         </span>
       </div>
+
+      {perHead !== null && (
+        <p className="mt-0.5 text-xs text-stone-500 dark:text-stone-400">
+          each · {formatPeso(split.total)} total so far
+        </p>
+      )}
 
       <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-stone-200 dark:bg-stone-800">
         <div
